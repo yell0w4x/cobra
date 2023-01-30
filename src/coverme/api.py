@@ -142,7 +142,7 @@ class Api:
             Console().print(table)
 
 
-# VOLUME
+# VOLUMES
 
     def __print_volumes(self, volumes):
             table = Table(Column(header='Name', header_style='bold blue', style='white'), 
