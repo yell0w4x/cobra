@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+
+OS_NAME="$(uname -s)"
+case "${OS_NAME}" in
+    Darwin*)
+        realpath() {
+            [[ $1 = /* ]] && echo "$1" || echo "${PWD}/${1#./}"
+        }
+    ;;
+esac
+
+
+SCRIPT_DIR=$(realpath "$(dirname "${0}")")
+VENV_DIR="${SCRIPT_DIR}/.venv"
+POSITIONAL=()
+
+
+usage() {
+cat << EOF
+Run unit tests.
+
+Usage:
+    ${0} [OPTIONS] [EXTRA_ARGS]
+
+All the EXTRA_ARGS are passed to pytest
+
+Options:
+    --help         Shows help message
+EOF
+}
+
+# set -eux
+
+while [ "${#}" -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            usage
+            exit
+        ;;
+
+        *)
+            POSITIONAL+=("${1}")
+        ;;
+    esac
+    
+   shift
+done
+
+# set -ex
+
+if [ -d "${VENV_DIR}" ]; then
+    source "${VENV_DIR}/bin/activate"
+else
+    python3 -m venv "${VENV_DIR}" && \
+    source "${VENV_DIR}/bin/activate" && \
+    pip install -r requirements.txt
+fi
+
+echo -e "\033[0;36mRunning tests...\033[0m"
+PYTHONPATH="${SCRIPT_DIR}/src" pytest "${SCRIPT_DIR}/src" "${POSITIONAL[@]}"

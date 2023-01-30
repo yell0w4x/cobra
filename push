@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR=$(realpath "$(dirname "${0}")")
+VENV_DIR=${SCRIPT_DIR}/.venv
+USE_TEST_PYPI=0
+POSITIONAL=()
+
+
+usage() {
+cat << EOF
+Build and push library to pypi index.
+
+Usage:
+    ${0} [OPTIONS] [EXTRA_ARGS]
+
+All the EXTRA_ARGS are passed to twine. 
+Credentials are in ~/.pypirc.
+
+Options:
+    --test         Use test pypi
+    --help         Shows help message
+EOF
+}
+
+# set -eux
+
+while [ "${#}" -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            usage
+            exit
+        ;;
+
+        --test)
+            USE_TEST_PYPI=1
+        ;;
+
+        *)
+            POSITIONAL+=("${1}")
+        ;;
+    esac
+    
+   shift
+done
+
+# set -ex
+
+if [ -d "${VENV_DIR}" ]; then
+    source "${VENV_DIR}/bin/activate"
+else
+    python3 -m venv "${VENV_DIR}" && \
+    source "${VENV_DIR}/bin/activate" && \
+    pip3 install build==0.7.0 twine==3.7.1
+fi
+
+rm -rf "${SCRIPT_DIR}/dist"
+cd "${SCRIPT_DIR}"
+python -m build
+
+if [ "${USE_TEST_PYPI}" -ne 0 ]; then
+    echo -e "\033[0;33mUsing test repository\033[0m"
+    twine upload --repository testpypi "${SCRIPT_DIR}/dist/*" "${POSITIONAL[@]}"
+else
+    echo -e "\033[0;33mUsing production repository\033[0m"
+    twine upload "${SCRIPT_DIR}/dist/*" "${POSITIONAL[@]}"
+fi
+
