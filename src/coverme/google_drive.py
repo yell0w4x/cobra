@@ -34,17 +34,17 @@ def upload_file(service_acc_key_fn, filename, mimetype,
     media = MediaFileUpload(filename, mimetype=mimetype, resumable=resumable, chunksize=chunksize)
     body = dict(name=upload_filename, parents=[parent_folder_id])
     
-    request = service.files().create(body=body, media_body=media).execute()
-    if file_size(filename) > chunksize:
-        done = None
-        while done is None:
-            chunk = request.next_chunk()
-            if not chunk:
-                continue
+    request = service.files().create(body=body, media_body=media)
+    # if file_size(filename) > chunksize:
+    done = None
+    while done is None:
+        chunk = request.next_chunk()
+        if not chunk:
+            continue
 
-            status, done = chunk
-            if status:
-                yield status
+        status, done = chunk
+        if status:
+            yield status
 
     return request
 

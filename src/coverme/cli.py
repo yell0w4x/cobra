@@ -28,7 +28,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
         'Needs to designate service account credentials (default: %(default)s)')
     backup_parser.add_argument('--creds', help='Google service account credentials file in json format')
     backup_parser.add_argument('--folder-id', help='Google drive folder id the backup files will reside under')
-    backup_parser.add_argument('--basename', default='backup', help='Backup files prefix (default: %(default)s)')
+    backup_parser.add_argument('--basename', default='backup', dest='backup_basename', help='Backup files prefix (default: %(default)s)')
     backup_sp = backup_parser.add_subparsers(title='backup subcommands', help='Backup related subcommands')
     # backup/list
     backup_list_parser = backup_sp.add_parser('list', help='List all the remote backups.')
