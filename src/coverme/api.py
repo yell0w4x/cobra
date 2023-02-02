@@ -99,7 +99,7 @@ class Api:
                     base_name = f'{base_name}{rand_str()}'
 
                 extra_vopts[full_dir] = dict(bind=join(container_backup_dir, base_name), mode='ro')
-                metadata |= copy.deepcopy(extra_vopts)
+            metadata |= copy.deepcopy(extra_vopts)
 
         volume_opts |= extra_vopts
         backup_archive_fn = f'{backup_name}.tar.gz'
@@ -196,7 +196,8 @@ class Api:
             if json:
                 print_json(files)
             elif plain:
-                print('\n'.join(f.get('name') for f in files))
+                print_id = kwargs.get('id', False)
+                print('\n'.join(f.get('id') if print_id else f.get('name') for f in files))
             else:
                 table = Table(Column(header='ID', header_style='bold blue', style='white'),
                             Column(header='Name', header_style='bold blue', style='white'), 

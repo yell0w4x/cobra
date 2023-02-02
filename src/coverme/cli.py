@@ -41,7 +41,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_build_parser.add_argument('--basename', default='backup', dest='backup_basename', metavar='BASENAME', help='Backup files prefix (default: %(default)s)')
     # backup/push
     backup_push_parser = backup_sp.add_parser('push', help='Push backup file to a storage')
-    backup_push_parser.add_argument('files', nargs='*', help='A file names list to push. To designate exact file on file system include path like \'./file-to-push\' for current directory. If no path given the files are looked for in backup directory either default or specified by --backup-dir option. If no files given then all files from default or desiginated by --backup-dir option are taken')
+    backup_push_parser.add_argument('files', nargs='*', help='A file names space seprated list to push. To designate exact file on file system include path like \'./file-to-push\' for current directory. If no path given the files are looked for in backup directory either default or specified by --backup-dir option. If no files given then all files from default or desiginated by --backup-dir option are taken')
     backup_push_parser.add_argument('--backup-dir', default=default_backup_dir(), help='The directory to store backups (default: %(default)s)')
     backup_push_parser.add_argument('--creds', help='Google service account credentials file in json format')
     backup_push_parser.add_argument('--folder-id', help='Google drive folder id the backup files will reside under')
@@ -54,6 +54,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_list_parser.add_argument('--creds', help='Google service account credentials file in json format')
     backup_list_parser.add_argument('--json', action='store_true', default=False, help='Print in json format')
     backup_list_parser.add_argument('--plain', action='store_true', default=False, help='Print a list of file names and ids')
+    backup_list_parser.add_argument('--id', action='store_true', default=False, help='Print a file id instead of name in case of --plain')
     backup_list_parser.add_argument('--backup-dir', default=default_backup_dir(), help='The directory to store backups (default: %(default)s)')
     backup_list_parser.add_argument('--filter', help='File name should include pattern, to exclude prepend the pattern with \'not\' (default: %(default)s)')
     backup_list_parser.set_defaults(handler=cli_handler.backup_list)

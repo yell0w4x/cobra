@@ -1,6 +1,8 @@
-# Mindsync platform API for python
+# CoBRA - COmprehensive Backing up and Restoreation Archiver
 
-[Mindsync](https://mindsync.ai) is a platform that provides unified access to connect the required capabilities for the AI industry. It brings together businesses, the best talents, services, and solutions in the AI field in one single ecosystem to provide access to scalable task-solving resources and democratize machine learning capacities.
+Cobra is a tool for creating, managing and restoring backups. 
+It designed to cover docker powered applications as well as allows backing up of 
+regular file system folders.
 
 ## Run tests
 
@@ -13,22 +15,20 @@ cd mindsync-api-python
 ## How to use
 
 ```
-pip install mindsync
+pip install cobra
 ```
 
 ### CLI
 
-After that `mindsync` command will be available from the command line.
+After that `cobra` command will be available from the command line.
 
-To get the cli description please use `mindsync --help` or e.g. `mindsync profile --help` to get help on certain command.
-Api key and api base url can be specified by environment variables `MINDSYNC_API_KEY` and `MINDSYNC_BASE_URL`.
+To get the cli description please use `cobra --help` or e.g. `cobra backup --help` to get help on certain command.
+Docker base url can be specified by environment variables `DOCKER_BASE_URL`.
 
-To get own profile issue one of these with correct api key. Api key is available within the [Mindsync platform](https://app.mindsync.ai/)
-under profile/account section.
+To backup all the docker volumes run this.
 
 ```bash
-mindsync --api-key fd3f8479b0b6b9868bff9bfadfefe69d --prettify profile
-MINDSYNC_API_KEY=fd3f8479b0b6b9868bff9bfadfefe69d mindsync --prettify profile
+cobra backup build --push 
 ```
 
 ### Python

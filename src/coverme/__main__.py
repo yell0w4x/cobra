@@ -1,5 +1,4 @@
 from coverme.cli import main
-from coverme.exc import CovermeCliError
 
 import sys
 
