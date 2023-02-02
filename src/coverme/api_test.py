@@ -120,14 +120,26 @@ def json_dump_mock():
         yield mock
 
 
-@pytest.mark.parametrize('volume_names,expected', [(None, make_volumes_list()),
+@pytest.fixture
+def exists_mock():
+    with patch('os.path.exists') as mock:
+        mock.return_value = False
+        yield mock
+
+
+@pytest.fixture
+def files_list():
+    return ['file1', 'file2', 'file3']
+
+
+@pytest.mark.parametrize('volume_names, expected', [(None, make_volumes_list()),
                                                     (('volume1',), [item for item in make_volumes_list() if item.name in ('volume1',)]),
                                                     (('volume1', 'volume2'), [item for item in make_volumes_list() if item.name in ('volume1', 'volume2')])])
 def test_volumes_list_must_return_docker_volumes_list(sut, volume_names, expected):
     assert expected == sut.volumes_list(volume_names=volume_names)
 
 
-@pytest.mark.parametrize('dir_names,expected_volume_opts', [(None, pytest.lazy_fixture('volume_opts')), 
+@pytest.mark.parametrize('dir_names, expected_volume_opts', [(None, pytest.lazy_fixture('volume_opts')), 
                                                             (pytest.lazy_fixture('dirs'), pytest.lazy_fixture('volume_opts_with_dirs'))])
 def test_backend_build_must_call_docker_run_with_correct_params(sut, scratch_datetime, dir_names, expected_volume_opts,
                                                                 docker_client_mock, backup_name, open_mock, json_dump_mock):
@@ -146,6 +158,17 @@ def test_backend_build_must_call_docker_run_with_correct_params(sut, scratch_dat
         metadata_fn = join(host_backup_dir, '...')
         open_mock.assert_called_with(metadata_fn, 'w')
         json_dump_mock.assert_called_with(metadata, open_mock.return_value.__enter__.return_value)
+
+
+@pytest.mark.parametrize('creds, folder_id, file_exists, expected_exc', 
+                        [(None, None, True, ValueError), 
+                        (None, 'folder-id', True, ValueError), 
+                        ('creds.json', 'folder-id', False, FileNotFoundError), 
+                        ('creds.json', None, True, ValueError)])
+def test_push_must_check_args(sut, exists_mock, creds, folder_id, file_exists, expected_exc):
+    exists_mock.return_value = file_exists
+    with pytest.raises(expected_exc):
+        sut.backup_push([], creds, folder_id)
 
 
 # class FormDataMatcher(FormData):

@@ -118,7 +118,7 @@ class Api:
         return str(rv, encoding='utf-8')
 
 
-    def backup_push(self, files, creds, folder_id, backup_dir, **kwargs):
+    def backup_push(self, files, creds, folder_id, backup_dir=default_backup_dir(), **kwargs):
         self.__check_remote_args(creds, folder_id)
 
         backup_dir = realpath(abspath(backup_dir))
@@ -149,7 +149,7 @@ class Api:
         if not creds_fn:
             raise ValueError('Service account key file must be specified: --creds option missing')
 
-        if not exists(creds_fn):
+        if not os.path.exists(creds_fn):
             raise FileNotFoundError(f'File not found [{creds_fn}]')
 
         if not folder_id:
