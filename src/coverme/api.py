@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from coverme.exc import CovermeApiError
-from coverme.google_drive import folder_list, upload_file
+import coverme.google_drive
 
 # import aiohttp
 import copy
@@ -166,7 +166,8 @@ class Api:
         backup_archive_full_fn = join(host_backup_dir, backup_archive_fn)
         with Progress() as p:
             task = p.add_task(f'[white]{backup_archive_fn}', total=100)
-            for status in upload_file(creds_fn, backup_archive_full_fn, 'application/gzip', backup_archive_fn, folder_id):
+            for status in coverme.google_drive.upload_file(
+                creds_fn, backup_archive_full_fn, 'application/gzip', backup_archive_fn, folder_id):
                 if kwargs.get('print', False):
                     p.update(task, completed=status.progress() * 100)
             p.update(task, completed=100)
@@ -180,7 +181,7 @@ class Api:
         if remote:
             self.__check_remote_args(creds, folder_id)
 
-        files = folder_list(creds, folder_id) if remote else sorted(os.listdir(backup_dir))
+        files = coverme.google_drive.folder_list(creds, folder_id) if remote else sorted(os.listdir(backup_dir))
 
         if kwargs.get('print', False):
             self.__print_backups(files, remote, **kwargs)
