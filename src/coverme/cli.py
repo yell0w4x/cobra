@@ -15,7 +15,7 @@ from os.path import join
 
 
 def parse_command_line(cli_handler, args=sys.argv[1:]):
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False, prog='cobra', description='Comprehensive Backing up and Restoration Archiver')
     parser.add_argument('-h', '--help', help='Shows help message', action='store_true')
     parser.add_argument('--base-url', default=os.environ.get('DOCKER_BASE_URL', DEFAULT_BASE_URL),
                         help='Docker daemon socket base url. If not specified an attempt to use DOCKER_BASE_URL variable will be performed '
@@ -41,7 +41,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_build_parser.add_argument('--basename', default='backup', dest='backup_basename', metavar='BASENAME', help='Backup files prefix (default: %(default)s)')
     # backup/push
     backup_push_parser = backup_sp.add_parser('push', help='Push backup file to a storage')
-    backup_push_parser.add_argument('files', nargs='*', help='A file names space seprated list to push. To designate exact file on file system include path like \'./file-to-push\' for current directory. If no path given the files are looked for in backup directory either default or specified by --backup-dir option. If no files given then all files from default or desiginated by --backup-dir option are taken')
+    backup_push_parser.add_argument('files', nargs='*', help='A file names space seprated list to push. To designate exact file on file system include path like \'./file/to/push\' for current directory. If no path given the files are looked for in backup directory either default or specified by --backup-dir option. If no files given then all files from default or desiginated by --backup-dir option are taken')
     backup_push_parser.add_argument('--backup-dir', default=default_backup_dir(), help='The directory to store backups (default: %(default)s)')
     backup_push_parser.add_argument('--creds', help='Google service account credentials file in json format')
     backup_push_parser.add_argument('--folder-id', help='Google drive folder id the backup files will reside under')
@@ -60,18 +60,16 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_list_parser.set_defaults(handler=cli_handler.backup_list)
     # backup/pull
     backup_pull_parser = backup_sp.add_parser('pull', help='Pulls given backup from remote storage')
-    backup_pull_parser.add_argument('--file-id', required=True, help='Google drive folder id to take backup from')
-    backup_pull_parser.add_argument('--folder-id', required=True, help='Google drive folder id to take backup from')
+    backup_pull_parser.add_argument('--file-id', required=True, help='Google drive file id to pull')
     backup_pull_parser.add_argument('--creds', required=True, help='Google service account credentials file in json format')
     backup_pull_parser.add_argument('--restore', action='store_true', default=False, help='Restore backup after download')
     backup_pull_parser.add_argument('--cache-dir', default=default_cache_dir(), help='The directory to store downloaded backup files (default: %(default)s)')
+    backup_pull_parser.add_argument('--no-cache', help='Ignore files that reside in cache directory and download from remote storage')
     backup_pull_parser.set_defaults(handler=cli_handler.backup_pull)
     # backup/restore
     backup_restore_parser = backup_sp.add_parser('restore', help='Restores given backup.')
-    backup_restore_parser.add_argument('--file-id', required=True, help='Google drive folder id to take backup from')
-    backup_restore_parser.add_argument('--folder-id', required=True, help='Google drive folder id to take backup from')
-    backup_restore_parser.add_argument('--creds', required=True, help='Google service account credentials file in json format')
-    backup_restore_parser.add_argument('--cache-dir', default=default_cache_dir(), help='The directory to store downloaded backup files (default: %(default)s)')
+    backup_restore_parser.add_argument('file', help='A backup archive to restore from. To designate exact file on file system include path like \'./file/to/restore\' for current directory. If no path given the file is looked for in a directory either default or specified by --cache-dir option')
+    backup_restore_parser.add_argument('--cache-dir', default=default_cache_dir(), help='The directory where temporary backup files are stored (default: %(default)s)')
     backup_restore_parser.set_defaults(handler=cli_handler.backup_restore)
     # backup/rm
     # backup_rm_parser = backup_sp.add_parser('rm', help='Remove backup.')
@@ -83,7 +81,12 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     # volume
     volume_parser = sp.add_parser('volume', help='Docker volumes related actions. By default lists all the volumes in table format.')
     volume_parser.set_defaults(handler=cli_handler.volumes_list)
+    volume_parser.add_argument('--json', action='store_true', default=False, help='Print in json format')
+    # volume/list
     volume_sp = volume_parser.add_subparsers(title='volume subcommands', help='Volume related subcommands')
+    volume_list_parser = volume_sp.add_parser('list', help='List volumes.')
+    volume_list_parser.add_argument('--json', action='store_true', default=False, help='Print in json format')
+    volume_list_parser.set_defaults(handler=cli_handler.volumes_list)
 
     args = parser.parse_args(args)
     effective_args = purge(vars(args))

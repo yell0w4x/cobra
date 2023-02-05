@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
-from coverme.exc import CovermeApiError
+from coverme.exc import CovermeApiError, CovermeCliError
 import coverme.google_drive
+from coverme.aux_stuff import rand_str
 
 # import aiohttp
 import copy
@@ -11,18 +12,19 @@ import inspect
 import docker
 import json
 import os
-from os.path import join, exists, realpath, abspath, basename, dirname
+import subprocess
+from os.path import join, exists, realpath, abspath, basename, dirname, splitext
 from urllib.parse import urljoin
 from rich.console import Console
 from rich.table import Table, Column
 from rich import box
 from rich.progress import Progress
 from datetime import datetime, timezone
-import string, random
 
 
 DEFAULT_BASE_URL = 'unix:///var/run/docker.sock'
 API_VERSION = '1.0'
+METADATA_FN = '...'
 
 
 def purge(obj):
@@ -33,23 +35,19 @@ def purge(obj):
         return obj
 
 
-def rand_str(length=8):
-    return ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
-
-
 def default_backup_dir():
-    fallback = join(os.environ.get('HOME'), '.local/share')
-    return join(os.environ.get('XDG_DATA_HOME', fallback), 'coverme/backup')
+    fallback = join(os.getenv('HOME'), '.local/share')
+    return join(os.getenv('XDG_DATA_HOME', fallback), 'coverme/backup')
 
 
 def default_config_dir():
-    fallback = join(os.environ.get('HOME'), '.config')
-    return join(os.environ.get('XDG_CONFIG_HOME', fallback), 'coverme')
+    fallback = join(os.getenv('HOME'), '.config')
+    return join(os.getenv('XDG_CONFIG_HOME', fallback), 'coverme')
 
 
 def default_cache_dir():
-    fallback = join(os.environ.get('HOME'), '.cache')
-    return join(os.environ.get('XDG_CACHE_HOME', fallback), 'coverme')
+    fallback = join(os.getenv('HOME'), '.cache')
+    return join(os.getenv('XDG_CACHE_HOME', fallback), 'coverme')
 
 
 def print_json(data, pretty=True):
@@ -82,7 +80,10 @@ class Api:
         utcnow = datetime.now(timezone.utc)
         backup_name = f'{backup_basename}@{utcnow:%Y%m%d.%H%M%S}'
         container_backup_dir = f'/{backup_name}'
-        volume_opts = { v.name: dict(bind=join(container_backup_dir, v.name), mode='ro') for v in volumes }
+        volume_opts = { 
+            v.name: dict(bind=join(container_backup_dir, v.name), 
+                         mode='ro') for v in volumes 
+        }
         volume_names = [v.name for v in volumes]
         metadata = copy.deepcopy(volume_opts)
         host_backup_dir = abspath(host_backup_dir)
@@ -104,12 +105,17 @@ class Api:
         volume_opts |= extra_vopts
         backup_archive_fn = f'{backup_name}.tar.gz'
         os.makedirs(host_backup_dir, exist_ok=True)
-        metadata_fn = join(host_backup_dir, '...')
+        for v in volumes:
+            metadata[v.name]['driver'] = v.attrs['Driver']
+            metadata[v.name]['options'] = v.attrs['Options']
+            metadata[v.name]['labels'] = v.attrs['Labels']
+
+        metadata_fn = join(host_backup_dir, METADATA_FN)
         with open(metadata_fn, 'w') as mdf:
             json.dump(metadata, mdf)
 
         container_backup_archive_fn = join('/backup', backup_archive_fn)
-        command=['sh', '-c', f'mv /backup/... {container_backup_dir} && tar -czvf {container_backup_archive_fn} {container_backup_dir}']
+        command=['sh', '-c', f'mv /backup/{METADATA_FN} {container_backup_dir} && tar -czvf {container_backup_archive_fn} {container_backup_dir}']
         rv = docker.containers.run('busybox', remove=True, volumes=volume_opts, command=command)
 
         if upload:
@@ -137,23 +143,88 @@ class Api:
             self.__backup_push(dirname(fn), basename(fn), creds=creds, folder_id=folder_id, **kwargs)
 
 
-    def backup_pull(self, **kwargs):
-        pass
+    def backup_pull(self, creds, file_id, restore=False, cache_dir=default_cache_dir(), **kwargs):
+        self.__check_remote_args1(creds, file_id)
+
+        os.makedirs(cache_dir, exist_ok=True)
+        fn = None
+        with Progress() as p:
+            task = p.add_task(f'[white]{file_id}', total=100)
+            try:
+                gen = coverme.google_drive.download_file(creds, file_id, cache_dir)
+                while True:
+                    status = next(gen)
+                    if kwargs.get('print', False):
+                        p.update(task, completed=status.progress() * 100)
+            except StopIteration as e:
+                fn = e.value
+
+            p.update(task, completed=100)
+        
+        if restore:
+            assert fn is not None
+            self.__backup_restore(fn, cache_dir, **kwargs)
+
+        return fn
 
 
-    def backup_restore(self, **kwargs):
-        pass
+    def backup_restore(self, file, cache_dir=default_cache_dir(), **kwargs):
+        self.__backup_restore(file, cache_dir, **kwargs)
+
+#fixme: shutils quote names
+
+    def __backup_restore(self, file_name, cache_dir, **kwargs):
+        if file_name.find('/') != -1:
+            file_name = realpath(abspath(file_name))
+        else:
+            file_name = join(cache_dir, file_name)
+
+        host_backup_dir = dirname(file_name)
+        rv = subprocess.check_output(['tar', 'xvf', file_name, '-C', host_backup_dir])
+        backup_name, _ = splitext(splitext(basename(file_name))[0])
+        container_volumes_mount_dir = f'/{backup_name}'
+        full_backup_archive_dir = join(host_backup_dir, backup_name)
+        metadata_fn = join(full_backup_archive_dir, METADATA_FN)
+        with open(metadata_fn) as f:
+            metadata = json.load(f)
+        
+        for vol_name, meta in metadata.items():
+            if vol_name.find('/') != -1:
+                os.makedirs(vol_name, exist_ok=True)
+                meta['mode'] = 'rw'
+            else:
+                meta['mode'] = 'rw'
+                self.__docker.volumes.create(vol_name, driver=meta['driver'], 
+                                             labels=meta['labels'], driver_opts=meta['options'])
+                del meta['driver'], meta['labels'], meta['options']
+
+        metadata[host_backup_dir] = dict(bind='/backup', mode='ro')
+        container_backup_archive_dir = join('/backup', backup_name, '*')
+        command=['sh', '-c', f'cp -rf {container_backup_archive_dir} {container_volumes_mount_dir}']
+        self.__docker.containers.run('busybox', remove=True, volumes=metadata, command=command)
+        return rv
 
 
     def __check_remote_args(self, creds_fn, folder_id):
         if not creds_fn:
-            raise ValueError('Service account key file must be specified: --creds option missing')
+            raise CovermeCliError('Service account key file must be specified: --creds option missing')
+
+        if not folder_id:
+            raise CovermeCliError('Google drive folder id must be specified: --folder-id option missing')
 
         if not os.path.exists(creds_fn):
             raise FileNotFoundError(f'File not found [{creds_fn}]')
 
-        if not folder_id:
-            raise ValueError('Google drive folder id must be specified: --folder-id option missing')
+
+    def __check_remote_args1(self, creds_fn, file_id):
+        if not creds_fn:
+            raise CovermeCliError('Service account key file must be specified: --creds option missing')
+
+        if not file_id:
+            raise CovermeCliError('Google drive file id must be specified: --file-id option missing')
+
+        if not os.path.exists(creds_fn):
+            raise FileNotFoundError(f'File not found [{creds_fn}]')
 
 
     def __backup_push(self, host_backup_dir, backup_archive_fn, **kwargs):
@@ -224,35 +295,41 @@ class Api:
 
 # VOLUMES
 
-    def __print_volumes(self, volumes):
+    def __print_volumes(self, volumes, is_json=False):
+        if is_json:
+            for v in volumes:
+                print_json(v.attrs)
+        else:
             table = Table(Column(header='Name', header_style='bold blue', style='white'), 
                           Column(header='Created at', header_style='bold blue', style='white'), 
                           Column(header='Driver', header_style='bold blue', style='white'), 
                           Column(header='Mountpoint', header_style='bold blue', style='white'), 
+                          Column(header='Options', header_style='bold blue', style='white'), 
+                          Column(header='Labels', header_style='bold blue', style='white'), 
                           box=box.ASCII)
 
             for v in volumes:
                 table.add_row(v.name, 
                               v.attrs.get('CreatedAt', 'n/a'), 
                               v.attrs.get('Driver', 'n/a'), 
-                              v.attrs.get('Mountpoint', 'n/a'))
+                              v.attrs.get('Mountpoint', 'n/a'),
+                              json.dumps(v.attrs.get('Options', 'n/a')),
+                              json.dumps(v.attrs.get('Labels', 'n/a'))
+                )
 
             Console().print(table)
 
 
-    def volumes_list(self, volume_names=None, **kwargs):
+    def volumes_list(self, volume_names=None, json=False, **kwargs):
         volumes = self.__docker.volumes.list()
         if volume_names:
             volumes = [v for v in volumes if v.name in volume_names]
 
         if kwargs.get('print', False):
-            self.__print_volumes(volumes)
+            self.__print_volumes(volumes, json)
 
         return volumes
 
-
-    def volumes_restore(self, volume_name, **kwargs):
-        pass
 
 
 # class Api:

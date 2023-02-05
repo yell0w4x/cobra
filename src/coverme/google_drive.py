@@ -1,10 +1,14 @@
+from coverme.aux_stuff import rand_str
+
 from googleapiclient.discovery_cache import LOGGER as google_discovery_cache_logger
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2.service_account import Credentials
 import io
-
+import os
+import shutil
 from os import stat
+from os.path import join, abspath, realpath, exists
 from logging import ERROR
 
 google_discovery_cache_logger.setLevel(level=ERROR)
@@ -35,7 +39,6 @@ def upload_file(service_acc_key_fn, filename, mimetype,
     body = dict(name=upload_filename, parents=[parent_folder_id])
     
     request = service.files().create(body=body, media_body=media)
-    # if file_size(filename) > chunksize:
     done = None
     while done is None:
         chunk = request.next_chunk()
@@ -49,22 +52,38 @@ def upload_file(service_acc_key_fn, filename, mimetype,
     return request
 
 
-def download_file(service_acc_key_fn, file_id):
+DOWNLOAD_CHUNK_SIZE = 20*1024*1024
+
+def download_file(service_acc_key_fn, file_id, local_dir=None, use_cache=True, chunksize=DOWNLOAD_CHUNK_SIZE):
     service = _service(service_acc_key_fn)
 
     # pylint: disable=maybe-no-member
+    metadata = service.files().get(fileId=file_id).execute()
+    fn = metadata['name']
+    if local_dir:
+        local_dir = realpath(abspath(local_dir))
+        if not os.access(local_dir, os.W_OK):
+            raise FileNotFoundError(f'Target directory is not found or not accessible [{local_dir}]')
+
+        temp_fn = join(local_dir, rand_str(16))
+        full_fn = join(local_dir, fn)
+        if use_cache and exists(full_fn):
+            return full_fn
+
     request = service.files().get_media(fileId=file_id)
-    stream = io.BytesIO()
-    downloader = MediaIoBaseDownload(stream, request)
-    done = None
-    while done is None:
-        status, done = downloader.next_chunk()
-        if done is None:
-            continue
+    with io.FileIO(temp_fn, 'wb') if local_dir else io.BytesIO() as stream:
+        downloader = MediaIoBaseDownload(stream, request, chunksize=chunksize)
+        while True:
+            status, done = downloader.next_chunk()
+            yield status
+            if done:
+                break
 
-        yield status
+        if local_dir:
+            shutil.move(temp_fn, full_fn)
+            return full_fn
 
-    return stream.getvalue()
+        return stream.getvalue(), fn
 
 
 def folder_list(service_acc_key_fn, folder_id):
@@ -82,6 +101,14 @@ if __name__ == '__main__':
     # drive_list('../../.temp/4xybox-service-account-key.json')
     # drives_create('../../.temp/4xybox-service-account-key.json')
     # drive_info('../../.temp/4xybox-service-account-key.json')
-    upload_file('../../.temp/4xybox-service-account-key.json', 
-                './__init__.py', 'application/json', 
-                '__init__.py', '100d96r89SxvJvm7ZUqFCOztaiZv6sBIA')
+    # upload_file('../../.temp/4xybox-service-account-key.json', 
+    #             './__init__.py', 'application/json', 
+    #             '__init__.py', '100d96r89SxvJvm7ZUqFCOztaiZv6sBIA')
+    try:
+        gen = download_file('.temp/4xybox-service-account-key.json', '1-dooih8zN9ze0BH6Asu7rxuMqMfRoRyq', './.temp')
+        while True:
+            status = next(gen)
+    except StopIteration as e:
+        # content, fn = e.value
+        print(e.value)
+    
