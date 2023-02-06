@@ -169,7 +169,7 @@ class Api:
 
 
     def backup_restore(self, file, cache_dir=default_cache_dir(), **kwargs):
-        self.__backup_restore(file, cache_dir, **kwargs)
+        return self.__backup_restore(file, cache_dir, **kwargs)
 
 #fixme: shutils quote names
 

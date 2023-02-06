@@ -1,5 +1,5 @@
 from coverme.api import (Api, CovermeApiError, DEFAULT_BASE_URL, 
-    default_backup_dir, default_cache_dir)
+    default_backup_dir, default_cache_dir, METADATA_FN)
 from coverme.hooks import Hooks
 from coverme.exc import CovermeCliError
 
@@ -12,7 +12,7 @@ from docker import DockerClient
 from docker.models.volumes import Volume
 from datetime import datetime
 from freezegun import freeze_time
-from os.path import join, abspath, realpath, basename, dirname
+from os.path import join, abspath, realpath, basename, dirname, splitext
 import json, copy
 
 
@@ -176,15 +176,19 @@ def upload_file_mock():
 
 
 @pytest.fixture
+def full_filename():
+    return '/some/file/name.tar.gz'
+
+
 def filename():
-    return '/some/file/name'
+    return 'backup.tar.gz'
 
 
 @pytest.fixture
-def download_file_mock(filename):
+def download_file_mock(full_filename):
     def rv():
         yield Status()
-        return filename
+        return full_filename
 
     with patch('coverme.google_drive.download_file') as mock:
         mock.return_value = rv()
@@ -208,7 +212,7 @@ def volumes_metadata():
     return {
         "usb-stick": {
             "bind": "/backup@20230204.211624/usb-stick",
-            "mode": "ro",
+            "mode": "rw",
             "driver": "local",
             "options": {
                 "device": "/dev/sda1",
@@ -221,7 +225,7 @@ def volumes_metadata():
         },
         "/home/q/work/coverme/examples": {
             "bind": "/backup@20230204.211624/examples",
-            "mode": "ro"
+            "mode": "rw"
         }
     }
 
@@ -310,16 +314,38 @@ def test_backup_pull_must_check_args(sut, exists_mock, creds, file_id, file_exis
         sut.backup_pull(creds, file_id, True, default_backup_dir())
 
 
-def test_pull_must_download_file(sut, download_file_mock, makedirs_mock, filename, exists_mock):
+def test_pull_must_download_file(sut, download_file_mock, makedirs_mock, full_filename, exists_mock):
     creds, file_id = 'creds', 'file_id'
-    assert filename == sut.backup_pull(creds, file_id)
+    assert full_filename == sut.backup_pull(creds, file_id)
     cache_dir = default_cache_dir()
     makedirs_mock.assert_called_with(cache_dir, exist_ok=True)
     download_file_mock.assert_called_with(creds, file_id, cache_dir)
 
 
-def test_restore_must_create_volumes_and_call_container_to_restore_files(sut, filename, check_output_mock, 
+@pytest.mark.parametrize('original_fn, fn', [(pytest.lazy_fixture('full_filename'), pytest.lazy_fixture('full_filename')),
+                                             (filename(), join(default_cache_dir(), filename()))])
+def test_restore_must_create_volumes_and_call_container_to_restore_files(sut, original_fn, fn, check_output_mock, 
                                                                          volumes_metadata, docker_client_mock, 
                                                                          open_mock, makedirs_mock, json_load_mock):
-    sut.backup_restore(filename)
-    check_output_mock.assert_called_with(['tar', 'xvf', filename, '-C', dirname(filename)])
+    metadata = copy.deepcopy(volumes_metadata)
+    assert check_output_mock.return_value == sut.backup_restore(original_fn)
+    host_backup_dir = dirname(fn)
+    check_output_mock.assert_called_with(['tar', 'xvf', fn, '-C', host_backup_dir])
+
+    backup_name, _ = splitext(splitext(basename(fn))[0])
+    container_volumes_mount_dir = f'/{backup_name}'
+    full_backup_archive_dir = join(host_backup_dir, backup_name)
+    metadata_fn = join(full_backup_archive_dir, METADATA_FN)
+    open_mock.assert_called_with(metadata_fn)
+    json_load_mock.assert_called_with(open_mock.return_value.__enter__.return_value)
+    makedirs_mock.assert_called_with('/home/q/work/coverme/examples', exist_ok=True)
+
+    vol_meta = metadata['usb-stick']
+    docker_client_mock.volumes.create.assert_called_with('usb-stick', driver=vol_meta['driver'], 
+                                                         labels=vol_meta['labels'], driver_opts=vol_meta['options'])
+    del vol_meta['driver'], vol_meta['labels'], vol_meta['options']
+    metadata[host_backup_dir] = dict(bind='/backup', mode='ro')
+    container_backup_archive_dir = join('/backup', backup_name, '*')
+    command=['sh', '-c', f'cp -rf {container_backup_archive_dir} {container_volumes_mount_dir}']
+    docker_client_mock.containers.run.assert_called_with('busybox', remove=True, volumes=metadata, command=command)
+
