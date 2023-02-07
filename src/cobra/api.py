@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 
-from coverme.exc import CovermeApiError, CovermeCliError, HookError
-import coverme.google_drive
-from coverme.aux_stuff import rand_str, print_json
-from coverme.hooks import default_hooks_dir
+from cobra.exc import CobraApiError, CobraCliError, HookError
+import cobra.google_drive
+from cobra.aux_stuff import rand_str, print_json
+from cobra.hooks import default_hooks_dir
 
 # import aiohttp
 import copy
@@ -38,17 +38,17 @@ def purge(obj):
 
 def default_backup_dir():
     fallback = join(os.getenv('HOME'), '.local/share')
-    return join(os.getenv('XDG_DATA_HOME', fallback), 'coverme/backup')
+    return join(os.getenv('XDG_DATA_HOME', fallback), 'cobra/backup')
 
 
 def default_config_dir():
     fallback = join(os.getenv('HOME'), '.config')
-    return join(os.getenv('XDG_CONFIG_HOME', fallback), 'coverme')
+    return join(os.getenv('XDG_CONFIG_HOME', fallback), 'cobra')
 
 
 def default_cache_dir():
     fallback = join(os.getenv('HOME'), '.cache')
-    return join(os.getenv('XDG_CACHE_HOME', fallback), 'coverme')
+    return join(os.getenv('XDG_CACHE_HOME', fallback), 'cobra')
 
 
 class Api:
@@ -154,7 +154,7 @@ class Api:
         with Progress() as p:
             task = p.add_task(f'[white]{file_id}', total=100)
             try:
-                gen = coverme.google_drive.download_file(creds, file_id, cache_dir)
+                gen = cobra.google_drive.download_file(creds, file_id, cache_dir)
                 while True:
                     status = next(gen)
                     if kwargs.get('print', False):
@@ -182,7 +182,7 @@ class Api:
         if remote:
             self.__check_remote_args(creds, folder_id)
 
-        files = coverme.google_drive.folder_list(creds, folder_id) if remote else sorted(os.listdir(backup_dir))
+        files = cobra.google_drive.folder_list(creds, folder_id) if remote else sorted(os.listdir(backup_dir))
 
         if kwargs.get('print', False):
             self.__print_backups(files, remote, **kwargs)
@@ -256,10 +256,10 @@ class Api:
 
     def __check_remote_args(self, creds_fn, folder_id):
         if not creds_fn:
-            raise CovermeCliError('Service account key file must be specified: --creds option missing')
+            raise CobraCliError('Service account key file must be specified: --creds option missing')
 
         if not folder_id:
-            raise CovermeCliError('Google drive folder id must be specified: --folder-id option missing')
+            raise CobraCliError('Google drive folder id must be specified: --folder-id option missing')
 
         if not os.path.exists(creds_fn):
             raise FileNotFoundError(f'File not found [{creds_fn}]')
@@ -267,10 +267,10 @@ class Api:
 
     def __check_remote_args1(self, creds_fn, file_id):
         if not creds_fn:
-            raise CovermeCliError('Service account key file must be specified: --creds option missing')
+            raise CobraCliError('Service account key file must be specified: --creds option missing')
 
         if not file_id:
-            raise CovermeCliError('Google drive file id must be specified: --file-id option missing')
+            raise CobraCliError('Google drive file id must be specified: --file-id option missing')
 
         if not os.path.exists(creds_fn):
             raise FileNotFoundError(f'File not found [{creds_fn}]')
@@ -289,7 +289,7 @@ class Api:
         backup_archive_full_fn = join(host_backup_dir, backup_archive_fn)
         with Progress() as p:
             task = p.add_task(f'[white]{backup_archive_fn}', total=100)
-            for status in coverme.google_drive.upload_file(
+            for status in cobra.google_drive.upload_file(
                 creds_fn, backup_archive_full_fn, 'application/gzip', backup_archive_fn, folder_id):
                 if kwargs.get('print', False):
                     p.update(task, completed=status.progress() * 100)

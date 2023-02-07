@@ -1,4 +1,4 @@
-from coverme.exc import HookError
+from cobra.exc import HookError
 
 from subprocess import check_call
 from importlib.util import spec_from_file_location, module_from_spec
@@ -8,12 +8,18 @@ import sys
 from shlex import quote
 
 
-DEFAULT_PYTHON_HOOK = '''from coverme.hooks import default_hook as hook
+DEFAULT_PYTHON_HOOK = '''from cobra.hooks import default_hook as hook
 
 # By default python hooks relay call to the same named shell scripts 
 # like hook_name.sh located in the hooks directory. 
 # E.g. before_build.py calls before_build.sh with same arguments 
 # except docker client instance.
+# 
+# Define custom hook as follows
+#
+# def hook(**kwargs):
+#     pass
+# 
 '''
 
 DEFAULT_SHELL_HOOK = '''#!/usr/bin/env bash
@@ -34,7 +40,7 @@ echo "${@}" > "${HOOKS_DIR}/${HOOK_NAME}.log"
 
 def default_hooks_dir():
     fallback = join(os.getenv('HOME'), '.local/share')
-    return join(os.getenv('XDG_DATA_HOME', fallback), 'coverme/hooks')
+    return join(os.getenv('XDG_DATA_HOME', fallback), 'cobra/hooks')
 
 
 def default_hook(**kwargs):
@@ -46,8 +52,6 @@ def default_hook(**kwargs):
     if not exists(script_fn):
         return
 
-    # shell_bin = os.getenv('SHELL', '/bin/bash')
-    # check_call([shell_bin, ' '.join(quote(s) for s in [script_fn, *kwargs.values()])])
     check_call([script_fn, *kwargs.values()])
 
 
@@ -57,9 +61,9 @@ class Hooks:
     stop_on_error = set(HOOKS)
      
 
-    def __init__(self, hooks_dir=default_hooks_dir(), disabled_hooks=[]):
+    def __init__(self, hooks_dir=default_hooks_dir(), disable_hooks=[]):
         self.__hooks_dir = realpath(abspath(hooks_dir))
-        self.__disabled_hooks = disabled_hooks
+        self.__disable_hooks = disable_hooks
 
 
     def __call__(self, hook_name, **kwargs):
@@ -91,11 +95,10 @@ class Hooks:
             shell_fn = join(hooks_dir, f'{hook_name}.sh')
 
             with open(py_fn, 'w') as f:
-                f.writelines(DEFAULT_PYTHON_HOOK)
+                f.write(DEFAULT_PYTHON_HOOK)
             with open(shell_fn, 'w') as f:
-                f.writelines(DEFAULT_SHELL_HOOK)
+                f.write(DEFAULT_SHELL_HOOK)
             os.chmod(shell_fn, 0o755)
-            check_call(['chmod', '+x', quote(shell_fn)])
 
 
     def __source_import(self, module_name, fn):

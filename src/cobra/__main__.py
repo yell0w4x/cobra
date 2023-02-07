@@ -1,4 +1,4 @@
-from coverme.cli import main
+from cobra.cli import main
 
 import sys
 

@@ -1,8 +1,8 @@
-from coverme.api import Api, purge, DEFAULT_BASE_URL, default_backup_dir, \
+from cobra.api import Api, purge, DEFAULT_BASE_URL, default_backup_dir, \
     default_cache_dir
-from coverme.exc import CovermeCliError
-from coverme.cli_handler import CliHandler
-from coverme.hooks import Hooks, default_hooks_dir
+from cobra.exc import CobraCliError
+from cobra.cli_handler import CliHandler
+from cobra.hooks import Hooks, default_hooks_dir
 
 
 import os
@@ -25,7 +25,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     # backup
     backup_parser = sp.add_parser('backup', help='Backup realated stuff')
     backup_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
-    backup_parser.add_argument('--disable-hooks', default=None, help='Disable hooks. Comma separted lists of hook names. With no value disables all hooks (default: %(default)s)')
+    # backup_parser.add_argument('--disable-hooks', default=None, help='Disable hooks. Comma separted lists of hook names. With no value disables all hooks (default: %(default)s)')
     backup_sp = backup_parser.add_subparsers(title='subcommands', help='Backup related subcommands')
     # backup/build
     backup_build_parser = backup_sp.add_parser('build', help='Build backup. By default backups all the volumes avaialble.')
@@ -90,7 +90,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     # hooks
     hooks_parser = sp.add_parser('hooks', help='Hooks related stuff')
     hooks_sp = hooks_parser.add_subparsers(title='subcommands', help='Hooks related subcommands')
-    hooks_init_parser = hooks_sp.add_parser('init', help='Initialize hooks in hooks directory')
+    hooks_init_parser = hooks_sp.add_parser('init', help='Initialize hooks in hooks directory. NOTE that all the hook files will be overwritten!')
     hooks_init_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
     hooks_init_parser.set_defaults(handler=cli_handler.init_hooks)
 
@@ -114,7 +114,7 @@ def main():
         _main()
     except SystemExit:
         raise
-    except CovermeCliError as e:
+    except CobraCliError as e:
         print(e.args[0], file=sys.stderr)
         e.args[1].print_help()
 
@@ -129,13 +129,13 @@ def _main():
     logging.debug(f'CLI Args: [{args}]')
 
     if args is not None and args.help:
-        from coverme.banner import BANNER
+        from cobra.banner import BANNER
         print(BANNER)
         parser.print_help()
         return
 
     if args is None or not hasattr(args, 'handler'):
-        raise CovermeCliError('No command specified', parser)
+        raise CobraCliError('No command specified', parser)
 
     api = Api(gateway=DockerClient(base_url=args.base_url), hooks=Hooks(args.hooks_dir))
     cli_handler.bind(api)

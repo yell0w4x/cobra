@@ -1,4 +1,4 @@
-from coverme.aux_stuff import rand_str
+from cobra.aux_stuff import rand_str
 
 from googleapiclient.discovery_cache import LOGGER as google_discovery_cache_logger
 from googleapiclient.discovery import build

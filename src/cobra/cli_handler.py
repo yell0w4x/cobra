@@ -1,5 +1,5 @@
-from coverme.api import Api
-from coverme.exc import CovermeCliError
+from cobra.api import Api
+from cobra.exc import CobraCliError
 
 # import json
 import inspect
@@ -13,7 +13,7 @@ class CliHandler:
                 try:
                     api = self.__api
                 except AttributeError:
-                    raise CovermeCliError('Api object is not binded')
+                    raise CobraCliError('Api object is not binded')
 
                 func = getattr(api, name)
                 return func(**kwargs)

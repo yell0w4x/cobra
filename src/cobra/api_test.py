@@ -1,7 +1,7 @@
-from coverme.api import (Api, CovermeApiError, DEFAULT_BASE_URL, 
+from cobra.api import (Api, CobraApiError, DEFAULT_BASE_URL, 
     default_backup_dir, default_cache_dir, METADATA_FN)
-from coverme.hooks import Hooks
-from coverme.exc import CovermeCliError
+from cobra.hooks import Hooks
+from cobra.exc import CobraCliError
 
 import pytest
 from unittest.mock import patch, AsyncMock, create_autospec, MagicMock, call
@@ -56,7 +56,7 @@ def hooks_mock():
 
 @pytest.fixture
 def sut(docker_client_mock, hooks_mock):
-    # return Api(gateway=docker_client_mock, hooks=Hooks(hooks_dir='/home/q/work/coverme/.temp/hooks'))
+    # return Api(gateway=docker_client_mock, hooks=Hooks(hooks_dir='/home/q/work/cobra/.temp/hooks'))
     return Api(gateway=docker_client_mock, hooks=hooks_mock)
 
 
@@ -165,7 +165,7 @@ def upload_file_mock():
     def rv():
         yield Status()
 
-    with patch('coverme.google_drive.upload_file') as mock:
+    with patch('cobra.google_drive.upload_file') as mock:
         mock.return_value = rv()
         yield mock
 
@@ -185,14 +185,14 @@ def download_file_mock(full_filename):
         yield Status()
         return full_filename
 
-    with patch('coverme.google_drive.download_file') as mock:
+    with patch('cobra.google_drive.download_file') as mock:
         mock.return_value = rv()
         yield mock
 
 
 @pytest.fixture
 def folder_list_mock():
-    with patch('coverme.google_drive.folder_list') as mock:
+    with patch('cobra.google_drive.folder_list') as mock:
         yield mock
 
 
@@ -218,7 +218,7 @@ def volumes_metadata():
                 "mystick": "qwer"
             }
         },
-        "/home/q/work/coverme/examples": {
+        "/home/q/work/cobra/examples": {
             "bind": "/backup@20230204.211624/examples",
             "mode": "rw"
         }
@@ -259,10 +259,10 @@ def test_backend_build_must_call_docker_run_with_correct_params(sut, scratch_dat
 
 
 @pytest.mark.parametrize('creds, folder_id, file_exists, expected_exc', 
-                        [(None, None, True, CovermeCliError), 
-                        (None, 'folder-id', True, CovermeCliError), 
+                        [(None, None, True, CobraCliError), 
+                        (None, 'folder-id', True, CobraCliError), 
                         ('creds.json', 'folder-id', False, FileNotFoundError), 
-                        ('creds.json', None, True, CovermeCliError)])
+                        ('creds.json', None, True, CobraCliError)])
 def test_backup_push_must_check_args(sut, exists_mock, creds, folder_id, file_exists, expected_exc):
     exists_mock.return_value = file_exists
     with pytest.raises(expected_exc):
@@ -288,10 +288,10 @@ def test_backup_list_must_list_local_or_remote_folder(sut, folder_list_mock, lis
 
 
 @pytest.mark.parametrize('creds, folder_id, file_exists, expected_exc', 
-                        [(None, None, True, CovermeCliError), 
-                        (None, 'folder-id', True, CovermeCliError), 
+                        [(None, None, True, CobraCliError), 
+                        (None, 'folder-id', True, CobraCliError), 
                         ('creds.json', 'folder-id', False, FileNotFoundError), 
-                        ('creds.json', None, True, CovermeCliError)])
+                        ('creds.json', None, True, CobraCliError)])
 def test_backup_list_must_check_args(sut, exists_mock, creds, folder_id, file_exists, expected_exc):
     exists_mock.return_value = file_exists
     with pytest.raises(expected_exc):
@@ -299,10 +299,10 @@ def test_backup_list_must_check_args(sut, exists_mock, creds, folder_id, file_ex
 
 
 @pytest.mark.parametrize('creds, file_id, file_exists, expected_exc', 
-                        [(None, None, True, CovermeCliError), 
-                        (None, 'file-id', True, CovermeCliError), 
+                        [(None, None, True, CobraCliError), 
+                        (None, 'file-id', True, CobraCliError), 
                         ('creds.json', 'folder-id', False, FileNotFoundError), 
-                        ('creds.json', None, True, CovermeCliError)])
+                        ('creds.json', None, True, CobraCliError)])
 def test_backup_pull_must_check_args(sut, exists_mock, creds, file_id, file_exists, expected_exc):
     exists_mock.return_value = file_exists
     with pytest.raises(expected_exc):
@@ -333,7 +333,7 @@ def test_restore_must_create_volumes_and_call_container_to_restore_files(sut, or
     metadata_fn = join(full_backup_archive_dir, METADATA_FN)
     open_mock.assert_called_with(metadata_fn)
     json_load_mock.assert_called_with(open_mock.return_value.__enter__.return_value)
-    makedirs_mock.assert_called_with('/home/q/work/coverme/examples', exist_ok=True)
+    makedirs_mock.assert_called_with('/home/q/work/cobra/examples', exist_ok=True)
 
     vol_meta = metadata['usb-stick']
     docker_client_mock.volumes.create.assert_called_with('usb-stick', driver=vol_meta['driver'], 
