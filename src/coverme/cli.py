@@ -2,7 +2,7 @@ from coverme.api import Api, purge, DEFAULT_BASE_URL, default_backup_dir, \
     default_cache_dir
 from coverme.exc import CovermeCliError
 from coverme.cli_handler import CliHandler
-from coverme.hooks import Hooks
+from coverme.hooks import Hooks, default_hooks_dir
 
 
 import os
@@ -24,8 +24,8 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     sp = parser.add_subparsers(title='subcommands', help='Use these subcommands to backup restore your data')
     # backup
     backup_parser = sp.add_parser('backup', help='Backup realated stuff')
-    # backup_parser.set_defaults(handler=cli_handler.backup_build)
-
+    backup_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
+    backup_parser.add_argument('--disable-hooks', default=None, help='Disable hooks. Comma separted lists of hook names. With no value disables all hooks (default: %(default)s)')
     backup_sp = backup_parser.add_subparsers(title='subcommands', help='Backup related subcommands')
     # backup/build
     backup_build_parser = backup_sp.add_parser('build', help='Build backup. By default backups all the volumes avaialble.')
@@ -87,6 +87,12 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     volume_list_parser = volume_sp.add_parser('list', help='List volumes.')
     volume_list_parser.add_argument('--json', action='store_true', default=False, help='Print in json format')
     volume_list_parser.set_defaults(handler=cli_handler.volumes_list)
+    # hooks
+    hooks_parser = sp.add_parser('hooks', help='Hooks related stuff')
+    hooks_sp = hooks_parser.add_subparsers(title='subcommands', help='Hooks related subcommands')
+    hooks_init_parser = hooks_sp.add_parser('init', help='Initialize hooks in hooks directory')
+    hooks_init_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
+    hooks_init_parser.set_defaults(handler=cli_handler.init_hooks)
 
     args = parser.parse_args(args)
     effective_args = purge(vars(args))
@@ -114,6 +120,9 @@ def main():
 
 
 def _main():
+    if sys.version_info < (3, 7):
+        RuntimeError(f'Incompatible python version [{sys.version_info}], must be at least 3.7')
+
     cli_handler = CliHandler()
     args, parser = parse_command_line(cli_handler)
     logging.basicConfig(level=args.log_level)
@@ -128,12 +137,8 @@ def _main():
     if args is None or not hasattr(args, 'handler'):
         raise CovermeCliError('No command specified', parser)
 
-    api = Api(gateway=DockerClient(base_url=args.base_url), hooks=Hooks())
+    api = Api(gateway=DockerClient(base_url=args.base_url), hooks=Hooks(args.hooks_dir))
     cli_handler.bind(api)
     dict_args = vars(args)
-    # if not args.meta:
-    #     dict_args.pop('meta', None)
 
     rv = args.handler(**dict_args, print=True)
-    # print(repr(rv))
-    # _print(rv, args)

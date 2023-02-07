@@ -16,12 +16,6 @@ from os.path import join, abspath, realpath, basename, dirname, splitext
 import json, copy
 
 
-# VOLUMES = [
-#     dict(id='volume1', name='volume1', attrs={ 'Id': 'Volume1', 'Name': 'volume1', 'CreatedAt': None, 'Driver': None, 'Mountpoint': None }),
-#     dict(id='volume2', name='volume2', attrs={ 'CreatedAt': None, 'Driver': None, 'Mountpoint': None }),
-#     dict(id='volume3', name='volume3', attrs={ 'CreatedAt': None, 'Driver': None, 'Mountpoint': None }),
-# ]
-
 VOLUMES = [
     { 'Id': 'Volume1', 'Name': 'volume1', 'CreatedAt': None, 'Driver': 'local', 'Mountpoint': None, 'Options': None, 'Labels': None },
     { 'Id': 'Volume2', 'Name': 'volume2', 'CreatedAt': None, 'Driver': 'local', 'Mountpoint': None, 'Options': None, 'Labels': None },
@@ -62,6 +56,7 @@ def hooks_mock():
 
 @pytest.fixture
 def sut(docker_client_mock, hooks_mock):
+    # return Api(gateway=docker_client_mock, hooks=Hooks(hooks_dir='/home/q/work/coverme/.temp/hooks'))
     return Api(gateway=docker_client_mock, hooks=hooks_mock)
 
 

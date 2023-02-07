@@ -4,3 +4,7 @@ class CovermeApiError(RuntimeError):
 
 class CovermeCliError(CovermeApiError):
     pass
+
+
+class HookError(CovermeApiError):
+    pass

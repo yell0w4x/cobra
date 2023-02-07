@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 
-from coverme.exc import CovermeApiError, CovermeCliError
+from coverme.exc import CovermeApiError, CovermeCliError, HookError
 import coverme.google_drive
-from coverme.aux_stuff import rand_str
+from coverme.aux_stuff import rand_str, print_json
+from coverme.hooks import default_hooks_dir
 
 # import aiohttp
 import copy
@@ -50,13 +51,6 @@ def default_cache_dir():
     return join(os.getenv('XDG_CACHE_HOME', fallback), 'coverme')
 
 
-def print_json(data, pretty=True):
-    if pretty:
-        print(json.dumps(data, indent=4, sort_keys=True))
-    else:
-        print(json.dumps(data))
-
-
 class Api:
     def __init__(self, gateway=None, hooks=None):
         '''
@@ -68,6 +62,7 @@ class Api:
 
         self.__logger = logging.getLogger(__name__)
         self.__docker = gateway if gateway else docker.DockerClient(base_url=DEFAULT_BASE_URL)
+        self.__hooks = hooks
 
 # BACKUP        
 
@@ -114,9 +109,15 @@ class Api:
         with open(metadata_fn, 'w') as mdf:
             json.dump(metadata, mdf)
 
+        self.__call_hook('before_build', backup_dir=host_backup_dir, 
+                         filename=backup_archive_fn, docker=self.__docker)
+
         container_backup_archive_fn = join('/backup', backup_archive_fn)
         command=['sh', '-c', f'mv /backup/{METADATA_FN} {container_backup_dir} && tar -czvf {container_backup_archive_fn} {container_backup_dir}']
         rv = docker.containers.run('busybox', remove=True, volumes=volume_opts, command=command)
+
+        self.__call_hook('after_build', backup_dir=host_backup_dir, 
+                         filename=backup_archive_fn, docker=self.__docker)
 
         if upload:
             self.__backup_push(host_backup_dir, backup_archive_fn, **kwargs)
@@ -146,8 +147,10 @@ class Api:
     def backup_pull(self, creds, file_id, restore=False, cache_dir=default_cache_dir(), **kwargs):
         self.__check_remote_args1(creds, file_id)
 
+        cache_dir = realpath(abspath(cache_dir))
         os.makedirs(cache_dir, exist_ok=True)
         fn = None
+        self.__call_hook('before_pull', cache_dir=cache_dir, filename=file_id, docker=self.__docker)
         with Progress() as p:
             task = p.add_task(f'[white]{file_id}', total=100)
             try:
@@ -160,7 +163,9 @@ class Api:
                 fn = e.value
 
             p.update(task, completed=100)
-        
+    
+        self.__call_hook('after_pull', cache_dir=cache_dir, filename=fn, docker=self.__docker)
+
         if restore:
             assert fn is not None
             self.__backup_restore(fn, cache_dir, **kwargs)
@@ -171,7 +176,42 @@ class Api:
     def backup_restore(self, file, cache_dir=default_cache_dir(), **kwargs):
         return self.__backup_restore(file, cache_dir, **kwargs)
 
+
+    def backup_list(self, creds, folder_id, remote, backup_dir, **kwargs):
+        # filtr = kwargs.get('filter')
+        if remote:
+            self.__check_remote_args(creds, folder_id)
+
+        files = coverme.google_drive.folder_list(creds, folder_id) if remote else sorted(os.listdir(backup_dir))
+
+        if kwargs.get('print', False):
+            self.__print_backups(files, remote, **kwargs)
+
+        return files
+
+
+    def volumes_list(self, volume_names=None, json=False, **kwargs):
+        volumes = self.__docker.volumes.list()
+        if volume_names:
+            volumes = [v for v in volumes if v.name in volume_names]
+
+        if kwargs.get('print', False):
+            self.__print_volumes(volumes, json)
+
+        return volumes
+
+
+    def init_hooks(self, hooks_dir=default_hooks_dir(), **kwargs):
+        self.__hooks.init_hooks(hooks_dir)
+
 #fixme: shutils quote names
+
+    def __call_hook(self, hook_name, **kwargs):
+        if not self.__hooks:
+            return
+
+        return self.__hooks(hook_name, **kwargs)
+
 
     def __backup_restore(self, file_name, cache_dir, **kwargs):
         if file_name.find('/') != -1:
@@ -180,8 +220,13 @@ class Api:
             file_name = join(cache_dir, file_name)
 
         host_backup_dir = dirname(file_name)
+        basename_fn = basename(file_name)
+
+        self.__call_hook('before_restore', cache_dir=host_backup_dir, 
+                          filename=basename_fn, docker=self.__docker)
+
         rv = subprocess.check_output(['tar', 'xvf', file_name, '-C', host_backup_dir])
-        backup_name, _ = splitext(splitext(basename(file_name))[0])
+        backup_name, _ = splitext(splitext(basename_fn)[0])
         container_volumes_mount_dir = f'/{backup_name}'
         full_backup_archive_dir = join(host_backup_dir, backup_name)
         metadata_fn = join(full_backup_archive_dir, METADATA_FN)
@@ -202,6 +247,10 @@ class Api:
         container_backup_archive_dir = join('/backup', backup_name, '*')
         command=['sh', '-c', f'cp -rf {container_backup_archive_dir} {container_volumes_mount_dir}']
         self.__docker.containers.run('busybox', remove=True, volumes=metadata, command=command)
+
+        self.__call_hook('after_restore', cache_dir=host_backup_dir, 
+                         filename=basename_fn, docker=self.__docker)
+
         return rv
 
 
@@ -228,6 +277,9 @@ class Api:
 
 
     def __backup_push(self, host_backup_dir, backup_archive_fn, **kwargs):
+        self.__call_hook('before_push', backup_dir=host_backup_dir, 
+                         filename=backup_archive_fn, docker=self.__docker)
+
         rm = kwargs.get('rm', False)
         creds_fn = kwargs.get('creds', None)
         folder_id = kwargs.get('folder_id', None)
@@ -243,23 +295,13 @@ class Api:
                     p.update(task, completed=status.progress() * 100)
             p.update(task, completed=100)
 
-        if rm:
+        self.__call_hook('after_push', backup_dir=host_backup_dir, 
+                         filename=backup_archive_fn, docker=self.__docker)
+
+        if rm and exists(backup_archive_full_fn):
             os.remove(backup_archive_full_fn)
 
     
-    def backup_list(self, creds, folder_id, remote, backup_dir, **kwargs):
-        # filtr = kwargs.get('filter')
-        if remote:
-            self.__check_remote_args(creds, folder_id)
-
-        files = coverme.google_drive.folder_list(creds, folder_id) if remote else sorted(os.listdir(backup_dir))
-
-        if kwargs.get('print', False):
-            self.__print_backups(files, remote, **kwargs)
-
-        return files
-
-
     def __print_backups(self, files, remote, **kwargs):
         json = kwargs.get('json', False)
         plain = kwargs.get('plain', False)
@@ -293,8 +335,6 @@ class Api:
                 print('\n'.join(files))
 
 
-# VOLUMES
-
     def __print_volumes(self, volumes, is_json=False):
         if is_json:
             for v in volumes:
@@ -318,18 +358,6 @@ class Api:
                 )
 
             Console().print(table)
-
-
-    def volumes_list(self, volume_names=None, json=False, **kwargs):
-        volumes = self.__docker.volumes.list()
-        if volume_names:
-            volumes = [v for v in volumes if v.name in volume_names]
-
-        if kwargs.get('print', False):
-            self.__print_volumes(volumes, json)
-
-        return volumes
-
 
 
 # class Api:
