@@ -1,7 +1,7 @@
 # CoBRA - COmprehensive Backing up and Restoreation Archiver
 
 Cobra is a tool for creating, managing and restoring backups. 
-It designed to cover docker powered applications as well as allows backing up of 
+It is designed to cover docker powered applications as well as it allows backing up of 
 regular file system folders.
 
 ## Run tests

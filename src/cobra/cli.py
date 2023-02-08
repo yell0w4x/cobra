@@ -25,7 +25,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     # backup
     backup_parser = sp.add_parser('backup', help='Backup realated stuff')
     backup_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
-    # backup_parser.add_argument('--disable-hooks', default=None, help='Disable hooks. Comma separted lists of hook names. With no value disables all hooks (default: %(default)s)')
+    backup_parser.add_argument('--hook-off', default=list(), nargs='*', metavar='HOOK_NAME', help='Disable all or certain hooks. To disable all pass \'*\'')
     backup_sp = backup_parser.add_subparsers(title='subcommands', help='Backup related subcommands')
     # backup/build
     backup_build_parser = backup_sp.add_parser('build', help='Build backup. By default backups all the volumes avaialble.')
@@ -60,7 +60,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_list_parser.set_defaults(handler=cli_handler.backup_list)
     # backup/pull
     backup_pull_parser = backup_sp.add_parser('pull', help='Pulls given backup from remote storage')
-    backup_pull_parser.add_argument('--file-id', required=True, help='Google drive file id to pull')
+    backup_pull_parser.add_argument('file_id', metavar='file-id', help='Google drive file id to pull')
     backup_pull_parser.add_argument('--creds', required=True, help='Google service account credentials file in json format')
     backup_pull_parser.add_argument('--restore', action='store_true', default=False, help='Restore backup after download')
     backup_pull_parser.add_argument('--cache-dir', default=default_cache_dir(), help='The directory to store downloaded backup files (default: %(default)s)')
@@ -96,12 +96,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
 
     args = parser.parse_args(args)
     effective_args = purge(vars(args))
-
-    # print(args)
-    # print(effective_args)
-
     del effective_args['help']
-    # print(effective_args)
 
     if not effective_args:
         return None, parser
@@ -137,8 +132,10 @@ def _main():
     if args is None or not hasattr(args, 'handler'):
         raise CobraCliError('No command specified', parser)
 
-    api = Api(gateway=DockerClient(base_url=args.base_url), hooks=Hooks(args.hooks_dir))
+    print(args)
+    args = vars(args)
+    api = Api(gateway=DockerClient(base_url=args.get('base_url', DEFAULT_BASE_URL)), 
+                                   hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
+                                               disable_hooks=args.get('hook_off', list())))
     cli_handler.bind(api)
-    dict_args = vars(args)
-
-    rv = args.handler(**dict_args, print=True)
+    args['handler'](**args, print=True)

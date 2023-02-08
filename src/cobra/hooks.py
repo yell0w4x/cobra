@@ -61,12 +61,22 @@ class Hooks:
     stop_on_error = set(HOOKS)
      
 
-    def __init__(self, hooks_dir=default_hooks_dir(), disable_hooks=[]):
+    def __init__(self, hooks_dir=default_hooks_dir(), disable_hooks=list()):
         self.__hooks_dir = realpath(abspath(hooks_dir))
+        if '*' in disable_hooks:
+            disable_hooks = self.HOOKS
+        else:
+            for hook_name in disable_hooks:
+                if hook_name not in self.HOOKS:
+                    raise ValueError(f'The hook name is invalid [{hook_name}]. The only allowed are {self.HOOKS}')
+
         self.__disable_hooks = disable_hooks
 
 
     def __call__(self, hook_name, **kwargs):
+        if hook_name in self.__disable_hooks:
+            return
+
         hooks_dir = self.__hooks_dir
         fn = join(hooks_dir, f'{hook_name}.py')
         try:

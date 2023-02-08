@@ -1,37 +1,25 @@
-# from mindsync.cli_handler import CliHandler
-# from mindsync.cli import parse_command_line
-# from mindsync.api import DEFAULT_BASE_URL
+from cobra.cli_handler import CliHandler
+from cobra.cli import parse_command_line
+from cobra.api import DEFAULT_BASE_URL
 
-# from argparse import Namespace
-# import os
+from argparse import Namespace
+import os
 
-# import pytest
-# from unittest.mock import create_autospec
-
-
-# API_KEY = 'does-not-matter'
-# BASE_URL = 'https://whatever'
-# RIG_ID = 'a-rig-id'
-# PROFILE_ID = 'a-profile-id'
-# RENT_ID = 'a-rent-id'
-# CODE_FN = 'does-not-matter'
-# CODE_ID = 'code-id'
-# UUID = 'the-uuid'
+import pytest
+from unittest.mock import create_autospec
 
 
-# @pytest.fixture
-# def cli_handler_mock():
-#     return create_autospec(CliHandler(), spec_set=True)
+BASE_URL = 'https://whatever'
 
 
-# @pytest.fixture
-# def api_key():
-#     return API_KEY
+@pytest.fixture
+def cli_handler_mock():
+    return create_autospec(CliHandler(), spec_set=True)
 
 
-# @pytest.fixture
-# def base_url():
-#     return BASE_URL
+@pytest.fixture
+def base_url():
+    return BASE_URL
 
 
 # @pytest.fixture(scope='session', autouse=True)
