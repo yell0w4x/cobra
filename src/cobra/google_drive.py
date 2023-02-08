@@ -60,6 +60,7 @@ def download_file(service_acc_key_fn, file_id, local_dir=None, use_cache=True, c
     # pylint: disable=maybe-no-member
     metadata = service.files().get(fileId=file_id).execute()
     fn = metadata['name']
+    yield fn
     if local_dir:
         local_dir = realpath(abspath(local_dir))
         if not os.access(local_dir, os.W_OK):

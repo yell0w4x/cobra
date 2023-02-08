@@ -170,18 +170,19 @@ def upload_file_mock():
         yield mock
 
 
-@pytest.fixture
-def full_filename():
-    return '/some/file/name.tar.gz'
-
-
 def filename():
     return 'backup.tar.gz'
 
 
 @pytest.fixture
+def full_filename():
+    return f'/some/file/{filename()}'
+
+
+@pytest.fixture
 def download_file_mock(full_filename):
     def rv():
+        yield filename()
         yield Status()
         return full_filename
 
@@ -311,10 +312,10 @@ def test_backup_pull_must_check_args(sut, exists_mock, creds, file_id, file_exis
 
 def test_pull_must_download_file(sut, download_file_mock, makedirs_mock, full_filename, exists_mock):
     creds, file_id = 'creds', 'file_id'
-    assert full_filename == sut.backup_pull(creds, file_id)
+    assert full_filename == sut.backup_pull(creds, file_id, no_cache=True)
     cache_dir = default_cache_dir()
     makedirs_mock.assert_called_with(cache_dir, exist_ok=True)
-    download_file_mock.assert_called_with(creds, file_id, cache_dir)
+    download_file_mock.assert_called_with(creds, file_id, cache_dir, use_cache=False)
 
 
 @pytest.mark.parametrize('original_fn, fn', [(pytest.lazy_fixture('full_filename'), pytest.lazy_fixture('full_filename')),

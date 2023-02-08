@@ -149,12 +149,13 @@ class Api:
 
         cache_dir = realpath(abspath(cache_dir))
         os.makedirs(cache_dir, exist_ok=True)
-        fn = None
+        use_cache = not kwargs.get('no_cache', False)
+        gen = cobra.google_drive.download_file(creds, file_id, cache_dir, use_cache=use_cache)
+        fn = next(gen)
         self.__call_hook('before_pull', cache_dir=cache_dir, filename=file_id, docker=self.__docker)
         with Progress() as p:
-            task = p.add_task(f'[white]{file_id}', total=100)
+            task = p.add_task(f'[white]{fn}', total=100)
             try:
-                gen = cobra.google_drive.download_file(creds, file_id, cache_dir)
                 while True:
                     status = next(gen)
                     if kwargs.get('print', False):
@@ -358,18 +359,3 @@ class Api:
                 )
 
             Console().print(table)
-
-
-# class Api:
-#     def __init__(self, key, base_url=DEFAULT_BASE_URL, raise_for_error=True):
-#         def create_method(func):
-#             def method(*args, **kwargs):
-#                 return asyncio.run(func(*args, **kwargs))
-#             return method
-
-#         self.__async_api = AsyncApi(key, base_url, raise_for_error)
-#         methods = inspect.getmembers(self.__async_api, predicate=inspect.ismethod)
-#         for m in methods:
-#             name, func = m
-#             if '__' not in name:
-#                 setattr(self, name, create_method(func))

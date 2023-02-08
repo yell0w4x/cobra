@@ -25,7 +25,7 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     # backup
     backup_parser = sp.add_parser('backup', help='Backup realated stuff')
     backup_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
-    backup_parser.add_argument('--hook-off', default=list(), nargs='*', metavar='HOOK_NAME', help='Disable all or certain hooks. To disable all pass \'*\'')
+    backup_parser.add_argument('--hook-off', default=list(), nargs='*', metavar='HOOK_NAME', help='Disable all or certain hooks. To disable all pass \'*\' (default: %(default)s)')
     backup_sp = backup_parser.add_subparsers(title='subcommands', help='Backup related subcommands')
     # backup/build
     backup_build_parser = backup_sp.add_parser('build', help='Build backup. By default backups all the volumes avaialble.')
@@ -49,12 +49,12 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_push_parser.set_defaults(handler=cli_handler.backup_push)
     # backup/list
     backup_list_parser = backup_sp.add_parser('list', help='List backup files by default on locally.')
-    backup_list_parser.add_argument('--remote', action='store_true', default=False, help='List remote files instead of local')
+    backup_list_parser.add_argument('--remote', action='store_true', default=False, help='List remote files instead of local (default: %(default)s)')
     backup_list_parser.add_argument('--folder-id', help='Google drive folder id to list')
     backup_list_parser.add_argument('--creds', help='Google service account credentials file in json format')
-    backup_list_parser.add_argument('--json', action='store_true', default=False, help='Print in json format')
-    backup_list_parser.add_argument('--plain', action='store_true', default=False, help='Print a list of file names and ids')
-    backup_list_parser.add_argument('--id', action='store_true', default=False, help='Print a file id instead of name in case of --plain')
+    backup_list_parser.add_argument('--json', action='store_true', default=False, help='Print in json format (default: %(default)s)')
+    backup_list_parser.add_argument('--plain', action='store_true', default=False, help='Print a list of file names and ids (default: %(default)s)')
+    backup_list_parser.add_argument('--id', action='store_true', default=False, help='Print a file id instead of name in case of --plain (default: %(default)s)')
     backup_list_parser.add_argument('--backup-dir', default=default_backup_dir(), help='The directory to store backups (default: %(default)s)')
     backup_list_parser.add_argument('--filter', help='File name should include pattern, to exclude prepend the pattern with \'not\' (default: %(default)s)')
     backup_list_parser.set_defaults(handler=cli_handler.backup_list)
@@ -62,9 +62,9 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_pull_parser = backup_sp.add_parser('pull', help='Pulls given backup from remote storage')
     backup_pull_parser.add_argument('file_id', metavar='file-id', help='Google drive file id to pull')
     backup_pull_parser.add_argument('--creds', required=True, help='Google service account credentials file in json format')
-    backup_pull_parser.add_argument('--restore', action='store_true', default=False, help='Restore backup after download')
+    backup_pull_parser.add_argument('--restore', action='store_true', default=False, help='Restore backup after download (default: %(default)s)')
     backup_pull_parser.add_argument('--cache-dir', default=default_cache_dir(), help='The directory to store downloaded backup files (default: %(default)s)')
-    backup_pull_parser.add_argument('--no-cache', help='Ignore files that reside in cache directory and download from remote storage')
+    backup_pull_parser.add_argument('--no-cache', action='store_true', default=False, help='Ignore files that reside in cache directory and download from remote storage (default: %(default)s)')
     backup_pull_parser.set_defaults(handler=cli_handler.backup_pull)
     # backup/restore
     backup_restore_parser = backup_sp.add_parser('restore', help='Restores given backup.')
@@ -132,7 +132,6 @@ def _main():
     if args is None or not hasattr(args, 'handler'):
         raise CobraCliError('No command specified', parser)
 
-    print(args)
     args = vars(args)
     api = Api(gateway=DockerClient(base_url=args.get('base_url', DEFAULT_BASE_URL)), 
                                    hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
