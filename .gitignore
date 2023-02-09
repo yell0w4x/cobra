@@ -134,3 +134,4 @@ dmypy.json
 examples
 __pycache__
 backup
+.*

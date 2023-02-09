@@ -55,6 +55,14 @@ def default_hook(**kwargs):
     check_call([script_fn, *kwargs.values()])
 
 
+def _source_import(module_name, fn):
+    spec = spec_from_file_location(module_name, fn)
+    module = module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 class Hooks:
     HOOKS = ('before_build', 'after_build', 'before_push', 'after_push', 
              'before_pull', 'after_pull', 'before_restore', 'after_restore')
@@ -85,7 +93,8 @@ class Hooks:
                 # fixme: If there is no python file found whether to fallback to default or not?
                 # return default_hook(hook_name=hook_name, hooks_dir=hooks_dir, **kwargs)
 
-            hook = self.__source_import(hook_name, fn)
+            # hook = self.__source_import(hook_name, fn)
+            hook = _source_import(hook_name, fn)
             return hook.hook(hook_name=hook_name, hooks_dir=hooks_dir, **kwargs)
         except BaseException as e:
             # fixme: log
@@ -111,9 +120,9 @@ class Hooks:
             os.chmod(shell_fn, 0o755)
 
 
-    def __source_import(self, module_name, fn):
-        spec = spec_from_file_location(module_name, fn)
-        module = module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
-        return module
+    # def __source_import(self, module_name, fn):
+    #     spec = spec_from_file_location(module_name, fn)
+    #     module = module_from_spec(spec)
+    #     sys.modules[module_name] = module
+    #     spec.loader.exec_module(module)
+    #     return module

@@ -110,14 +110,6 @@ def volume_opts_with_dirs(volume_opts, dirs, backup_name):
 
 
 @pytest.fixture
-def open_mock():
-    with patch('builtins.open') as mock:
-        mock_enter_rv = MagicMock()
-        mock.return_value.__enter__.return_value = mock_enter_rv
-        yield mock
-
-
-@pytest.fixture
 def json_dump_mock():
     with patch('json.dump') as mock:
         yield mock
@@ -146,12 +138,6 @@ def files_list():
 def listdir_mock():
     with patch('os.listdir') as mock:
         mock.return_value = files_list()
-        yield mock
-
-
-@pytest.fixture
-def makedirs_mock():
-    with patch('os.makedirs') as mock:
         yield mock
 
 

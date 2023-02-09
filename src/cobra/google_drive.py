@@ -14,16 +14,9 @@ from logging import ERROR
 google_discovery_cache_logger.setLevel(level=ERROR)
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# class GoogleDrive:
-#     SCOPES = ['https://www.googleapis.com/auth/drive']
-
-#     def __init__(self, service_account_key_fn, folder_id):
-#         pass
-
 
 def file_size(filename):
     file_stats = stat(filename)
-    # print('File Size in Bytes is {}'.format(file_stats.st_size))
     return file_stats.st_size
 
 

@@ -14,6 +14,8 @@ esac
 SCRIPT_DIR=$(realpath "$(dirname "${0}")")
 VENV_DIR="${SCRIPT_DIR}/.venv"
 POSITIONAL=()
+UNIT=
+E2E=
 
 
 usage() {
@@ -26,7 +28,9 @@ Usage:
 All the EXTRA_ARGS are passed to pytest
 
 Options:
-    --help         Shows help message
+    --help         Show help message
+    --unit         Run unit tests
+    --e2e          Run e2e tests
 EOF
 }
 
@@ -37,25 +41,61 @@ while [ "${#}" -gt 0 ]; do
         -h|--help)
             usage
             exit
-        ;;
+            ;;
+
+        --unit)
+            UNIT=1
+            ;;
+
+        --e2e)
+            E2E=1
+            ;;
 
         *)
             POSITIONAL+=("${1}")
-        ;;
+            ;;
     esac
     
    shift
 done
 
-# set -ex
+set -eux
 
-if [ -d "${VENV_DIR}" ]; then
-    source "${VENV_DIR}/bin/activate"
-else
-    python3 -m venv "${VENV_DIR}" && \
-    source "${VENV_DIR}/bin/activate" && \
-    pip install -r requirements.txt
+on_exit() {
+    if [ -n "${E2E}" ]; then
+        docker compose -f "${E2E_COMPOSE_FN}" rm --stop --force
+    fi
+}
+
+trap on_exit EXIT
+
+if [ -n "${UNIT}" ]; then
+    if [ -d "${VENV_DIR}" ]; then
+        source "${VENV_DIR}/bin/activate"
+    else
+        python3 -m venv "${VENV_DIR}" && \
+        source "${VENV_DIR}/bin/activate" && \
+        pip install -r requirements.txt
+    fi
+
+    echo -e "\033[0;36mRunning unit tests...\033[0m"
+    PYTHONPATH="${SCRIPT_DIR}/src" pytest "${SCRIPT_DIR}/src" "${POSITIONAL[@]}"
 fi
 
-echo -e "\033[0;36mRunning tests...\033[0m"
-PYTHONPATH="${SCRIPT_DIR}/src" pytest "${SCRIPT_DIR}/src" "${POSITIONAL[@]}"
+if [ -n "${E2E}" ]; then
+    "${SCRIPT_DIR}/build"
+    WHEEL_FULL_FN="$(ls ${SCRIPT_DIR}/dist/*.whl)"
+    E2E_TESTS_DIR="${SCRIPT_DIR}/e2e-tests"
+    E2E_COMPOSE_FN="${E2E_TESTS_DIR}/docker-compose.yml"
+    E2E_TEMP_DIR="${E2E_TESTS_DIR}/tests/.temp"
+    rm -rf "${E2E_TEMP_DIR}"
+    mkdir -p "${E2E_TEMP_DIR}"
+    WHEEL_FN="$(basename "${WHEEL_FULL_FN}")"
+    cp "${WHEEL_FULL_FN}" "${E2E_TEMP_DIR}/${WHEEL_FN}"
+    PYTEST_ARGS=
+
+
+    docker compose -f "${E2E_COMPOSE_FN}" build --build-arg "WHEEL_FN=${WHEEL_FN}"
+    docker compose -f "${E2E_COMPOSE_FN}" run --name cobra-e2e-tests cobra-e2e-tests \
+        dumb-init bash -c "pytest -s ${PYTEST_ARGS}; ls -lha /test"
+fi
