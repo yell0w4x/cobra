@@ -36,6 +36,11 @@ services:
       PYTHONPATH: /test
     networks:
       - cobra
+    # entrypoint:
+    #   - dumb-init
+    #   - bash 
+    #   - -c 
+    #   - "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest"
 
 volumes:
   docker-certs-ca:

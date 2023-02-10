@@ -65,7 +65,9 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     backup_list_parser.set_defaults(handler=cli_handler.backup_list)
     # backup/pull
     backup_pull_parser = backup_sp.add_parser('pull', help='Pulls given backup from remote storage')
-    backup_pull_parser.add_argument('file_id', metavar='file-id', help='Google drive file id to pull')
+    backup_pull_parser.add_argument('--file-id', default=None, help='Google drive file id to pull')
+    backup_pull_parser.add_argument('--latest', action='store_true', default=False, help='Get latest file to pull. Note that the file name is not checked (default: %(default)s)')
+    backup_pull_parser.add_argument('--folder-id', default=None, help='Google drive folder id to pull from')
     backup_pull_parser.add_argument('--creds', required=True, help='Google service account credentials file in json format')
     backup_pull_parser.add_argument('--restore', action='store_true', default=False, help='Restore backup after download (default: %(default)s)')
     backup_pull_parser.add_argument('--cache-dir', default=default_cache_dir(), help='The directory to store downloaded backup files (default: %(default)s)')

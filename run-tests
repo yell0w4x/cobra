@@ -104,6 +104,7 @@ if [ -n "${E2E}" ]; then
     PYTEST_ARGS=
 
     docker compose -f "${E2E_COMPOSE_FN}" build --build-arg "WHEEL_FN=${WHEEL_FN}"
+    # docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests
     docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests \
-        dumb-init bash -c "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest -s ${PYTEST_ARGS}; ls -lha /test"
+        dumb-init bash -c "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest -s ${PYTEST_ARGS}"
 fi

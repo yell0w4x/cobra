@@ -6,18 +6,23 @@ import tempfile
 import time
 from os.path import join
 from filecmp import cmpfiles
-from subprocess import check_output
+from subprocess import check_call
 import traceback
 
 
-def test_smoke(client, source_tar_data, files_container, file_names, folder_id):
-    # client.containers.run('alpine:3.17', volumes=dict(files=dict(bind='/files', mode='rw')))
-    stream, _ = files_container.get_archive('/files', chunk_size=None)
-    dest_tar_data = next(stream)
+def test_smoke(client, files_volume, source_tar_data, files_container, file_names, folder_id):
+    # # client.containers.run('alpine:3.17', volumes=dict(files=dict(bind='/files', mode='rw')))
+    # stream, _ = files_container.get_archive('/files', chunk_size=None)
+    # dest_tar_data = next(stream)
 
     # use shared volume between dind and test container to make stuff visible in bind mounts
-    print(check_output(['cobra', 'backup', 'build', '--backup-dir', '/shared', '--push', 
-                        '--creds', './.key.json', '--folder-id', folder_id]))
+    check_call(['cobra', 'backup', 'build', '--backup-dir', '/shared/backup', '--push', 
+                '--creds', './.key.json', '--folder-id', folder_id])
+
+    files_volume.remove(force=True)
+
+    check_call(['cobra', 'backup', 'pull', '--latest', '--restore', 
+                '--creds', './.key.json', '--folder-id', folder_id])
 
     with tempfile.TemporaryDirectory(prefix='cobra-test-') as temp_dir:
         source_dir = join(temp_dir, '1')

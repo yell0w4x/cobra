@@ -285,15 +285,19 @@ def test_backup_list_must_check_args(sut, exists_mock, creds, folder_id, file_ex
         sut.backup_list(creds, folder_id, True, default_backup_dir())
 
 
-@pytest.mark.parametrize('creds, file_id, file_exists, expected_exc', 
-                        [(None, None, True, CobraCliError), 
-                        (None, 'file-id', True, CobraCliError), 
-                        ('creds.json', 'folder-id', False, FileNotFoundError), 
-                        ('creds.json', None, True, CobraCliError)])
-def test_backup_pull_must_check_args(sut, exists_mock, creds, file_id, file_exists, expected_exc):
+@pytest.mark.parametrize('creds, file_id, file_exists, folder_id, latest, expected_exc', 
+                        [(None, None, True, None, False, CobraCliError), 
+                        (None, 'file-id', True, None, False, CobraCliError), 
+                        ('creds.json', 'file-id', False, None, False, FileNotFoundError), 
+                        ('creds.json', None, True, None, False, CobraCliError),
+                        (None, None, True, None, True, CobraCliError), 
+                        (None, None, True, 'folder-id', True, CobraCliError), 
+                        ('creds.json', None, False, 'folder-id', True, CobraCliError), 
+                        ])
+def test_backup_pull_must_check_args(sut, exists_mock, creds, file_id, file_exists, folder_id, latest, expected_exc):
     exists_mock.return_value = file_exists
     with pytest.raises(expected_exc):
-        sut.backup_pull(creds, file_id, True, default_backup_dir())
+        sut.backup_pull(creds, file_id, restore=True, cache_dir=default_cache_dir())
 
 
 def test_pull_must_download_file(sut, download_file_mock, makedirs_mock, full_filename, exists_mock):

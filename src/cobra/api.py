@@ -144,9 +144,19 @@ class Api:
             self.__backup_push(dirname(fn), basename(fn), creds=creds, folder_id=folder_id, **kwargs)
 
 
-    def backup_pull(self, creds, file_id, restore=False, cache_dir=default_cache_dir(), **kwargs):
-        self.__check_remote_args1(creds, file_id)
+    def backup_pull(self, creds, file_id, latest=False, folder_id=None,
+                    restore=False, cache_dir=default_cache_dir(), **kwargs):
+        if latest:
+            self.__check_remote_args(creds, folder_id)
+            files = cobra.google_drive.folder_list(creds, folder_id)
+            if not files:
+                print('No files found')
+                return
 
+            file_id = files[-1]['id']
+
+        self.__check_remote_args1(creds, file_id)
+        
         cache_dir = realpath(abspath(cache_dir))
         os.makedirs(cache_dir, exist_ok=True)
         use_cache = not kwargs.get('no_cache', False)

@@ -86,7 +86,8 @@ def folder_list(service_acc_key_fn, folder_id):
                                    fields='files(id,name,createdTime,modifiedTime,size,md5Checksum)',
                                    corpora='allDrives',
                                    supportsAllDrives=True, 
-                                   includeItemsFromAllDrives=True).execute()
+                                   includeItemsFromAllDrives=True,
+                                   orderBy='createdTime').execute()
 
     return results.get('files', [])
 
