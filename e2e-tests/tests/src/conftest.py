@@ -90,4 +90,10 @@ def files_container(client, files_volume, file_names, source_tar_data):
         raise
 
     yield files_container
-    files_container.remove()
+
+    try:
+        files_container = client.containers.get(files_container.name)
+    except docker.errors.NotFound:
+        pass
+    else:
+        files_container.remove()
