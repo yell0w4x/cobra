@@ -5,14 +5,17 @@ services:
     container_name: cobra-e2e-tests-dind
     restart: always
     hostname: cobra-e2e-tests-dind
-    image: docker:23.0.0-dind
+    # image: docker:23.0.0-dind
+    image: docker:20.10.21-dind
     privileged: true
     dns: 8.8.8.8
     environment:
       DOCKER_TLS_CERTDIR: "/certs"
+      DOCKER_TLS_VERIFY: 1
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
+      - shared:/shared
     networks:
       - cobra
 
@@ -25,8 +28,11 @@ services:
       - cobra-e2e-tests-dind
     volumes: 
       - docker-certs-client:/root/.docker:ro
+      - shared:/shared
     environment:
       DOCKER_HOST: "tcp://cobra-e2e-tests-dind:2376"
+      DOCKER_TLS_VERIFY: 1
+      DOCKER_CERT_PATH: /root/.docker
       PYTHONPATH: /test
     networks:
       - cobra
@@ -34,6 +40,7 @@ services:
 volumes:
   docker-certs-ca:
   docker-certs-client:
+  shared:
 
 networks:
   cobra:

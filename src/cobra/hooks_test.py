@@ -25,7 +25,6 @@ def source_import_mock():
         return mock
 
 
-
 def test_must_raise_if_invalid_hook_name_given_in_disable_hooks():
     with pytest.raises(ValueError):
         Hooks(disable_hooks=['asdf'])

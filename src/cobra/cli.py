@@ -11,15 +11,20 @@ import logging
 import json
 import sys
 from docker import DockerClient
+import docker
 from os.path import join
 
 
 def parse_command_line(cli_handler, args=sys.argv[1:]):
     parser = argparse.ArgumentParser(add_help=False, prog='cobra', description='Comprehensive Backing up and Restoration Archiver')
     parser.add_argument('-h', '--help', help='Shows help message', action='store_true')
-    parser.add_argument('--base-url', default=os.environ.get('DOCKER_BASE_URL', DEFAULT_BASE_URL),
-                        help='Docker daemon socket base url. If not specified an attempt to use DOCKER_BASE_URL variable will be performed '
-                            f'(default: {DEFAULT_BASE_URL})')
+    parser.add_argument('--base-url', default=os.environ.get('DOCKER_HOST', DEFAULT_BASE_URL),
+                        help='Docker daemon socket base url. If not specified an attempt to use DOCKER_HOST variable will be performed '
+                            '(default: %(default)s)')
+    parser.add_argument('--tls', action='store_true', default=os.environ.get('DOCKER_TLS_VERIFY', False),
+                        help='Make docker cli use tls. If not specified an attempt to use DOCKER_TLS_VERIFY variable will be performed '
+                            '(default: %(default)s)')
+    parser.add_argument('--cert-dir', type=str, default=os.environ.get('DOCKER_CERT_PATH', None), help='Path to ca and client certificates')
     parser.add_argument('--log-level', default='INFO', help='Logging level from standard python logging module (default: %(default)s)')
     sp = parser.add_subparsers(title='subcommands', help='Use these subcommands to backup restore your data')
     # backup
@@ -133,8 +138,18 @@ def _main():
         raise CobraCliError('No command specified', parser)
 
     args = vars(args)
-    api = Api(gateway=DockerClient(base_url=args.get('base_url', DEFAULT_BASE_URL)), 
-                                   hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
-                                               disable_hooks=args.get('hook_off', list())))
+    if args.get('tls'):
+        cert_dir = args.get('cert_dir')
+        client_cert = join(cert_dir, 'cert.pem'), join(cert_dir, 'key.pem')
+        ca_cert = join(cert_dir, 'ca.pem')
+        tls_config = docker.tls.TLSConfig(ca_cert=ca_cert, client_cert=client_cert, verify=True)
+        api = Api(gateway=DockerClient(base_url=args.get('base_url'), tls=tls_config), 
+                                       hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
+                                                   disable_hooks=args.get('hook_off', list())))
+    else:
+        api = Api(gateway=DockerClient(base_url=args.get('base_url')), 
+                                       hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
+                                                   disable_hooks=args.get('hook_off', list())))
+
     cli_handler.bind(api)
     args['handler'](**args, print=True)

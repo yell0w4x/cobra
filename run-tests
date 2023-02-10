@@ -16,6 +16,7 @@ VENV_DIR="${SCRIPT_DIR}/.venv"
 POSITIONAL=()
 UNIT=
 E2E=
+SKIP_BUILD=
 
 
 usage() {
@@ -31,6 +32,7 @@ Options:
     --help         Show help message
     --unit         Run unit tests
     --e2e          Run e2e tests
+    --skip-build   Skip building dist files
 EOF
 }
 
@@ -51,6 +53,10 @@ while [ "${#}" -gt 0 ]; do
             E2E=1
             ;;
 
+        --skip-build)
+            SKIP_BUILD=1
+            ;;
+
         *)
             POSITIONAL+=("${1}")
             ;;
@@ -59,11 +65,12 @@ while [ "${#}" -gt 0 ]; do
    shift
 done
 
-set -eux
+set -eu
 
 on_exit() {
     if [ -n "${E2E}" ]; then
         docker compose -f "${E2E_COMPOSE_FN}" rm --stop --force
+        # docker rm cobra-e2e-tests
     fi
 }
 
@@ -83,7 +90,9 @@ if [ -n "${UNIT}" ]; then
 fi
 
 if [ -n "${E2E}" ]; then
-    "${SCRIPT_DIR}/build"
+    if [ -z "${SKIP_BUILD}" ]; then
+        "${SCRIPT_DIR}/build"
+    fi
     WHEEL_FULL_FN="$(ls ${SCRIPT_DIR}/dist/*.whl)"
     E2E_TESTS_DIR="${SCRIPT_DIR}/e2e-tests"
     E2E_COMPOSE_FN="${E2E_TESTS_DIR}/docker-compose.yml"
@@ -94,8 +103,7 @@ if [ -n "${E2E}" ]; then
     cp "${WHEEL_FULL_FN}" "${E2E_TEMP_DIR}/${WHEEL_FN}"
     PYTEST_ARGS=
 
-
     docker compose -f "${E2E_COMPOSE_FN}" build --build-arg "WHEEL_FN=${WHEEL_FN}"
-    docker compose -f "${E2E_COMPOSE_FN}" run --name cobra-e2e-tests cobra-e2e-tests \
-        dumb-init bash -c "pytest -s ${PYTEST_ARGS}; ls -lha /test"
+    docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests \
+        dumb-init bash -c "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest -s ${PYTEST_ARGS}; ls -lha /test"
 fi

@@ -9,10 +9,9 @@ RUN cd /tmp && wget https://github.com/Yelp/dumb-init/releases/download/v1.2.5/d
 RUN dpkg -i /tmp/dumb-init_1.2.5_amd64.deb
 
 COPY .temp /tmp
-RUN ls -lha /tmp
 ARG WHEEL_FN=
 RUN pip install /tmp/${WHEEL_FN}
 
 WORKDIR /test
-COPY src /test
+COPY src .key.json wait-for-it.sh /test
 RUN pip install -r requirements.txt
