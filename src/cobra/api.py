@@ -66,10 +66,10 @@ class Api:
 
 # BACKUP        
 
-    def backup_build(self, volume_names=None, dir_names=None, 
+    def backup_build(self, include_volumes=None, exclude_volumes=None, dir_names=None, 
                      backup_basename='backup', host_backup_dir=default_backup_dir(), **kwargs):
         upload = kwargs.get('push', False)
-        volumes = self.volumes_list(volume_names)
+        volumes = self.volumes_list(include_volumes, exclude_volumes)
         docker = self.__docker
         
         utcnow = datetime.now(timezone.utc)
@@ -79,7 +79,7 @@ class Api:
             v.name: dict(bind=join(container_backup_dir, v.name), 
                          mode='ro') for v in volumes 
         }
-        volume_names = [v.name for v in volumes]
+        include_volumes = [v.name for v in volumes]
         metadata = copy.deepcopy(volume_opts)
         host_backup_dir = abspath(host_backup_dir)
         # output dir mapped to host where the dest compressed file will reside
@@ -91,7 +91,7 @@ class Api:
                 full_dir = realpath(abspath(item))
                 base_name = basename(full_dir)
                 # avoiding conflicts with volume names
-                if base_name in volume_names:
+                if base_name in include_volumes:
                     base_name = f'{base_name}{rand_str()}'
 
                 extra_vopts[full_dir] = dict(bind=join(container_backup_dir, base_name), mode='ro')
@@ -201,10 +201,19 @@ class Api:
         return files
 
 
-    def volumes_list(self, volume_names=None, json=False, **kwargs):
+    def volumes_list(self, include_volumes=None, exclude_volumes=None, json=False, **kwargs):
+        include_volumes = set(include_volumes) if include_volumes is not None else set()
+        exclude_volumes = set(exclude_volumes) if exclude_volumes is not None else set()
+        common = include_volumes.intersection(exclude_volumes)
+        if common:
+            raise CobraApiError('Include volumes list intersects with exclude volumes list')
+
         volumes = self.__docker.volumes.list()
-        if volume_names:
-            volumes = [v for v in volumes if v.name in volume_names]
+        if include_volumes:
+            volumes = [v for v in volumes if v.name in include_volumes]
+
+        if exclude_volumes:
+            volumes = [v for v in volumes if v.name not in exclude_volumes]
 
         if kwargs.get('print', False):
             self.__print_volumes(volumes, json)

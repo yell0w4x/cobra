@@ -9,6 +9,7 @@ import tarfile
 import hashlib
 import io
 from os.path import join, basename
+from mongoengine import Document, StringField, IntField, FloatField, connect
 
 
 FILES_NUM = 5
@@ -73,27 +74,61 @@ def source_tar_data(file_names):
 @pytest.fixture
 def files_volume(client):
     return client.volumes.create('files')
-    # client.volumes.create('mongodb')
-    # client.volumes.create('postgres')
+
+
+@pytest.fixture
+def mongo_volume(client):
+    return client.volumes.create('mongo')
+
+
+def remove_container_safely(client, container):
+    try:
+        container = client.containers.get(container.name)
+    except docker.errors.NotFound:
+        pass
+    else:
+        container.remove(v=True, force=True)
 
 
 @pytest.fixture
 def files_container(client, files_volume, file_names, source_tar_data):
     client.images.pull('alpine:3.17')
-    files_container = client.containers.create('alpine:3.17', name='files', 
+    container = client.containers.create('alpine:3.17', name='files', 
         volumes=dict(files=dict(bind='/files', mode='rw')))
     try:
-        if not files_container.put_archive('/', source_tar_data):
+        if not container.put_archive('/', source_tar_data):
             raise RuntimeError('Unable to put files inside a container')
     except BaseException:
-        files_container.remove()
+        container.remove()
         raise
 
-    yield files_container
+    yield container
+    remove_container_safely(client, container)
 
-    try:
-        files_container = client.containers.get(files_container.name)
-    except docker.errors.NotFound:
-        pass
-    else:
-        files_container.remove()
+
+class TestDoc(Document):
+    name = StringField()
+    amount = IntField()
+    factor = FloatField()
+
+
+@pytest.fixture
+def mongo_client():
+    connect(db='test', host='cobra-e2e-tests-dind', port=27017)
+
+
+@pytest.fixture
+def mongo_docs():
+    TestDoc(name='Jonny Walker', amount=1000, factor=0.25).save()
+    TestDoc(name='Madonna', amount=10000, factor=0.55).save()
+    TestDoc(name='Elvis Presley', amount=9999, factor=0.75).save()
+    TestDoc(name='Jim Carrey', amount=99999, factor=1.2).save()
+
+
+@pytest.fixture
+def mongo_container(client, mongo_volume):
+    client.images.pull('mongo:6.0')
+    container = client.containers.run('mongo:6.0', name='mongo', ports={'27017/tcp': 27017},
+        volumes=dict(mongo=dict(bind='/data/db', mode='rw')), detach=True)
+    yield container
+    remove_container_safely(client, container)

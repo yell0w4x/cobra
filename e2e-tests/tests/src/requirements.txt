@@ -1,2 +1,5 @@
 pytest
 docker
+mongoengine==0.26.0
+pymongo==4.3.3
+dnspython==2.3.0

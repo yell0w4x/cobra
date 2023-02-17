@@ -35,7 +35,8 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     # backup/build
     backup_build_parser = backup_sp.add_parser('build', help='Build backup. By default backups all the volumes avaialble.')
     backup_build_parser.set_defaults(handler=cli_handler.backup_build)
-    backup_build_parser.add_argument('-v', '--volume', nargs='*', dest='volume_names', metavar='VOLUME', help='Volume name or id to backup')
+    backup_build_parser.add_argument('-i', '--include', nargs='*', dest='include_volumes', metavar='VOLUME', help='Volume name or id to include into backup')
+    backup_build_parser.add_argument('-x', '--exclude', nargs='*', dest='exclude_volumes', metavar='VOLUME', help='Volume name or id to exclude from backup')
     backup_build_parser.add_argument('-d', '--dir', nargs='*', dest='dir_names', metavar='DIR', help='Directory to backup')
     backup_build_parser.add_argument('--rm', action='store_true', default=False, help='Remove the backup from the local machine after backup uploaded to remote storage (default: %(default)s). Only if push specified.')
     backup_build_parser.add_argument('--push', action='store_true', default=False, help='Whether to upload created backup file to google drive folder shared to service account. '

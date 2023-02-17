@@ -211,11 +211,23 @@ def volumes_metadata():
         }
     }
 
-@pytest.mark.parametrize('volume_names, expected', [(None, make_volumes_list()),
-                                                    (('volume1',), [item for item in make_volumes_list() if item.name in ('volume1',)]),
-                                                    (('volume1', 'volume2'), [item for item in make_volumes_list() if item.name in ('volume1', 'volume2')])])
-def test_volumes_list_must_return_docker_volumes_list(sut, volume_names, expected):
-    assert expected == sut.volumes_list(volume_names=volume_names)
+@pytest.mark.parametrize('include_volumes, exclude_volumes, expected', 
+    [
+        (None, None, make_volumes_list()),
+        (('volume1',), None, [item for item in make_volumes_list() if item.name in ('volume1',)]),
+        (('volume1', 'volume2'), None, [item for item in make_volumes_list() if item.name in ('volume1', 'volume2')]),
+        (None, ['volume3'], [item for item in make_volumes_list() if item.name not in ('volume3',)]),
+        (('volume1',), ['volume3'], [item for item in make_volumes_list() if item.name in ('volume1',)]),
+        (('volume1', 'volume2'), ['volume3'], [item for item in make_volumes_list() if item.name in ('volume1', 'volume2')]),
+    ])
+def test_volumes_list_must_return_docker_volumes_list_according_include_and_exclude_options(sut, include_volumes, exclude_volumes, expected):
+    assert expected == sut.volumes_list(include_volumes=include_volumes, exclude_volumes=exclude_volumes)
+
+
+@pytest.mark.parametrize('include_volumes, exclude_volumes', [(['volume1', 'volume2'], ['volume2'])])
+def test_volumes_list_must_raise_if_include_and_exlucde_lists_intersect(sut, include_volumes, exclude_volumes):
+    with pytest.raises(CobraApiError):
+        sut.volumes_list(include_volumes=include_volumes, exclude_volumes=exclude_volumes)
 
 
 @pytest.mark.parametrize('dir_names, expected_volume_opts', [(None, pytest.lazy_fixture('volume_opts')), 
@@ -292,7 +304,7 @@ def test_backup_list_must_check_args(sut, exists_mock, creds, folder_id, file_ex
                         ('creds.json', None, True, None, False, CobraCliError),
                         (None, None, True, None, True, CobraCliError), 
                         (None, None, True, 'folder-id', True, CobraCliError), 
-                        ('creds.json', None, False, 'folder-id', True, CobraCliError), 
+                        ('creds.json', None, False, 'folder-id', True, CobraCliError),
                         ])
 def test_backup_pull_must_check_args(sut, exists_mock, creds, file_id, file_exists, folder_id, latest, expected_exc):
     exists_mock.return_value = file_exists

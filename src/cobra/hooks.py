@@ -89,9 +89,9 @@ class Hooks:
         fn = join(hooks_dir, f'{hook_name}.py')
         try:
             if not exists(fn):
-                return
+                # return
                 # fixme: If there is no python file found whether to fallback to default or not?
-                # return default_hook(hook_name=hook_name, hooks_dir=hooks_dir, **kwargs)
+                return default_hook(hook_name=hook_name, hooks_dir=hooks_dir, **kwargs)
 
             # hook = self.__source_import(hook_name, fn)
             hook = _source_import(hook_name, fn)

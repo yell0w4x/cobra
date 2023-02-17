@@ -1,7 +1,9 @@
 import pytest
-from unittest.mock import create_autospec, patch
+from unittest.mock import create_autospec, patch, call
 
 from cobra.hooks import Hooks
+
+from os.path import join
 
 
 @pytest.fixture
@@ -33,3 +35,8 @@ def test_must_raise_if_invalid_hook_name_given_in_disable_hooks():
 def test_init_hooks(sut, open_mock, makedirs_mock, chmod_mock, hooks_dir):
     sut.init_hooks()
     makedirs_mock.assert_called_with(hooks_dir, exist_ok=True)
+
+    # calls = [call(join(hooks_dir, f'{hook_name}.{ext}'), 'w') for hook_name in sut.HOOKS for ext in ('py', 'sh')]
+    # open_mock.assert_has_calls(calls)
+    # calls = [call(join(hooks_dir, f'{hook_name}.sh'), 'w') for hook_name in sut.HOOKS]
+    # chmod_mock.assert_has_calls(calls)

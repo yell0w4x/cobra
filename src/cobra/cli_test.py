@@ -24,11 +24,11 @@ def base_url():
 
 @pytest.mark.parametrize('cli_args, expected_args', [
                                                 # PROFILE
-                                                 (['--base-url', BASE_URL, 'backup', 'build', '--volume', 'volume1', 'volume2', '--dir', 'dir1', 'dir2'], 
+                                                 (['--base-url', BASE_URL, 'backup', 'build', '--include', 'volume1', 'volume2', '--exclude', 'volume3', '--dir', 'dir1', 'dir2'], 
                                                  Namespace(help=False, tls=False, cert_dir=None, base_url=BASE_URL, log_level='INFO', handler='backup_build', 
                                                            host_backup_dir=default_backup_dir(), backup_basename='backup', hooks_dir=default_hooks_dir(), 
                                                            hook_off=[], creds=None, folder_id=None, push=False, rm=False, 
-                                                           volume_names=['volume1', 'volume2'], dir_names=['dir1', 'dir2'])), 
+                                                           include_volumes=['volume1', 'volume2'], exclude_volumes=['volume3'], dir_names=['dir1', 'dir2'])), 
                                                  (['backup', 'push', 'filename1', 'filename2', '--creds', 'key.json', '--folder-id', 'asdf', '--rm'], 
                                                  Namespace(help=False, tls=False, cert_dir=None, base_url=DEFAULT_BASE_URL, log_level='INFO', handler='backup_push', 
                                                            backup_dir=default_backup_dir(), hooks_dir=default_hooks_dir(), rm=True,

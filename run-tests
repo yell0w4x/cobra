@@ -13,7 +13,7 @@ esac
 
 SCRIPT_DIR=$(realpath "$(dirname "${0}")")
 VENV_DIR="${SCRIPT_DIR}/.venv"
-POSITIONAL=()
+ARGS=()
 UNIT=
 E2E=
 SKIP_BUILD=
@@ -21,7 +21,7 @@ SKIP_BUILD=
 
 usage() {
 cat << EOF
-Run unit tests.
+Run unit tests or e2e.
 
 Usage:
     ${0} [OPTIONS] [EXTRA_ARGS]
@@ -58,7 +58,7 @@ while [ "${#}" -gt 0 ]; do
             ;;
 
         *)
-            POSITIONAL+=("${1}")
+            ARGS+=("${1}")
             ;;
     esac
     
@@ -66,6 +66,11 @@ while [ "${#}" -gt 0 ]; do
 done
 
 set -eu
+
+if [ -z "${UNIT}" ] && [ -z "${E2E}" ]; then
+    usage
+    exit 1
+fi
 
 on_exit() {
     if [ -n "${E2E}" ]; then
@@ -86,7 +91,7 @@ if [ -n "${UNIT}" ]; then
     fi
 
     echo -e "\033[0;36mRunning unit tests...\033[0m"
-    PYTHONPATH="${SCRIPT_DIR}/src" pytest "${SCRIPT_DIR}/src" "${POSITIONAL[@]}"
+    PYTHONPATH="${SCRIPT_DIR}/src" pytest "${SCRIPT_DIR}/src" "${ARGS[@]}"
 fi
 
 if [ -n "${E2E}" ]; then
@@ -101,10 +106,9 @@ if [ -n "${E2E}" ]; then
     mkdir -p "${E2E_TEMP_DIR}"
     WHEEL_FN="$(basename "${WHEEL_FULL_FN}")"
     cp "${WHEEL_FULL_FN}" "${E2E_TEMP_DIR}/${WHEEL_FN}"
-    PYTEST_ARGS=
 
     docker compose -f "${E2E_COMPOSE_FN}" build --build-arg "WHEEL_FN=${WHEEL_FN}"
     # docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests
     docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests \
-        dumb-init bash -c "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest -s ${PYTEST_ARGS}"
+        dumb-init bash -c "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest -s ${ARGS[*]}"
 fi
