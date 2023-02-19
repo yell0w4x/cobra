@@ -15,10 +15,13 @@ from shutil import rmtree
 from mongoengine import disconnect
 
 
+KEY_FN = '/test/.key.json'
+
+
 def test_must_backup_and_restore_files_from_named_volume(client, files_volume, source_tar_data, files_container, file_names, folder_id):
     # use shared volume between dind and test container to make stuff visible in bind mounts
     check_call(['cobra', 'backup', 'build', '--backup-dir', '/shared/backup', '--push', 
-                '--creds', './.key.json', '--folder-id', folder_id])
+                '--creds', KEY_FN, '--folder-id', folder_id])
 
     files_container.remove(v=True, force=True)
     files_volume.remove(force=True)
@@ -27,7 +30,7 @@ def test_must_backup_and_restore_files_from_named_volume(client, files_volume, s
         client.volumes.get('files')
 
     check_call(['cobra', 'backup', 'pull', '--latest', '--restore', '--cache-dir', '/shared/cache',
-                '--creds', './.key.json', '--folder-id', folder_id])
+                '--creds', KEY_FN, '--folder-id', folder_id])
 
     files_volume = client.volumes.get('files')
     files_container = client.containers.create('alpine:3.17', name='files', 
@@ -109,7 +112,7 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'build', '--push', 
                 '--backup-dir', '/shared/backup', '--dir', MONGO_DUMP_DIR,
-                '--creds', './.key.json', '--folder-id', folder_id, 
+                '--creds', KEY_FN, '--folder-id', folder_id, 
                 '--exclude', mongo_volumes[0].name, mongo_volumes[1].name])
 
     mongo_containers[0].remove(v=True, force=True)
@@ -121,7 +124,7 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'pull', '--latest', 
                 '--restore', '--cache-dir', '/shared/cache',
-                '--creds', './.key.json', '--folder-id', folder_id])
+                '--creds', KEY_FN, '--folder-id', folder_id])
 
     with pytest.raises(NotFound):
         client.volumes.get(mongo_volumes[0].name)

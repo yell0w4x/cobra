@@ -17,7 +17,8 @@ ARGS=()
 UNIT=
 E2E=
 SKIP_BUILD=
-
+# GOOG_FOLDER_ID="${GOOGLE_DRIVE_FOLDER_ID}"
+# GOOG_SERVICE_ACC_KEY="${GOOGLE_SERVICE_ACC_KEY}"
 
 usage() {
 cat << EOF
@@ -29,10 +30,14 @@ Usage:
 All the EXTRA_ARGS are passed to pytest
 
 Options:
-    --help         Show help message
-    --unit         Run unit tests
-    --e2e          Run e2e tests
-    --skip-build   Skip building dist files
+    --help                Show help message
+    --unit                Run unit tests
+    --e2e                 Run e2e tests
+    --skip-build          Skip building dist files
+    --folder-id FOLDER_ID Google drive folder id to use as remote storage for e2e tests. 
+                          If not given read from GOOGLE_DRIVE_FOLDER_ID environment variable.
+    --key KEY_FN          Path to google service account key file in json format
+                          If not given read from GOOGLE_SERVICE_ACC_KEY environment variable.
 EOF
 }
 
@@ -56,6 +61,16 @@ while [ "${#}" -gt 0 ]; do
         --skip-build)
             SKIP_BUILD=1
             ;;
+        
+        --folder-id)
+            shift
+            GOOGLE_DRIVE_FOLDER_ID="${1}"
+            ;;
+
+        --key)
+            shift
+            GOOGLE_SERVICE_ACC_KEY="${1}"
+            ;;
 
         *)
             ARGS+=("${1}")
@@ -68,6 +83,14 @@ done
 set -eu
 
 if [ -z "${UNIT}" ] && [ -z "${E2E}" ]; then
+    echo -e '\033[31mEither --e2e or --unit or both are required\033[0m' > /dev/stderr
+    usage
+    exit 1
+fi
+
+
+if [ -n "${E2E}" ] && ([ -z "${GOOGLE_DRIVE_FOLDER_ID+x}" ] || [ -z "${GOOGLE_SERVICE_ACC_KEY+x}" ]); then
+    echo -e '\033[31mGoogle drive folder id (--folder-id) and service account key file (--key) are required\033[0m' > /dev/stderr
     usage
     exit 1
 fi
@@ -75,7 +98,6 @@ fi
 on_exit() {
     if [ -n "${E2E}" ]; then
         docker compose -f "${E2E_COMPOSE_FN}" rm --stop --force
-        # docker rm cobra-e2e-tests
     fi
 }
 
@@ -108,7 +130,8 @@ if [ -n "${E2E}" ]; then
     cp "${WHEEL_FULL_FN}" "${E2E_TEMP_DIR}/${WHEEL_FN}"
 
     docker compose -f "${E2E_COMPOSE_FN}" build --build-arg "WHEEL_FN=${WHEEL_FN}"
-    # docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests
-    docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests cobra-e2e-tests \
+    docker compose -f "${E2E_COMPOSE_FN}" run --rm --name cobra-e2e-tests \
+        --volume "$(realpath ${GOOGLE_SERVICE_ACC_KEY}):/test/.key.json:ro" \
+        --env "GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}" cobra-e2e-tests \
         dumb-init bash -c "./wait-for-it.sh cobra-e2e-tests-dind:2376 -t 30; pytest ${ARGS[*]}"
 fi

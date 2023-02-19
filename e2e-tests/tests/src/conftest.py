@@ -16,13 +16,6 @@ FILES_NUM = 5
 FILE_SIZE = 1024
 
 
-# def md5(fn):
-#     with open(fn, 'rb') as f:
-#         hash = hashlib.md5()
-#         hash.update(f.read())
-#         return hash.hexdigest()
-
-
 def tar_content_md5(fn):
     with tarfile.open(tar_fn, 'r') as tar:
         tar.add(temp_dir)
@@ -34,10 +27,12 @@ def md5(data):
     return hash.hexdigest()
 
 
-
 @pytest.fixture
 def folder_id():
-    return '100d96r89SxvJvm7ZUqFCOztaiZv6sBIA'
+    try:
+        return os.environ['GOOGLE_DRIVE_FOLDER_ID']
+    except KeyError as e:
+        raise RuntimeError('Please set GOOGLE_DRIVE_FOLDER_ID environment variable') from e
 
 
 @pytest.fixture

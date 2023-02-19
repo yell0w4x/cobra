@@ -18,4 +18,4 @@ RUN pip install /tmp/${WHEEL_FN}
 WORKDIR /test
 COPY src/requirements.txt /test/requirements.txt
 RUN pip install -r requirements.txt
-COPY src .key.json wait-for-it.sh /test
+COPY src wait-for-it.sh /test
