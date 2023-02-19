@@ -1,4 +1,4 @@
-from share import extract_tar
+from share import extract_tar, TestDoc, mongo_connect
 
 from cobra.api import default_hooks_dir
 
@@ -8,10 +8,11 @@ import tempfile
 import time
 import os
 from os.path import join, exists
-from filecmp import cmpfiles, cmp
+from filecmp import cmpfiles
 from subprocess import check_call
 from docker.errors import NotFound
 from shutil import rmtree
+from mongoengine import disconnect
 
 
 def test_must_backup_and_restore_files_from_named_volume(client, files_volume, source_tar_data, files_container, file_names, folder_id):
@@ -51,16 +52,25 @@ def test_must_backup_and_restore_files_from_named_volume(client, files_volume, s
 MONGO_DUMP_DIR = '/shared/mongodb-dump'
 BEFORE_BUILD_HOOK = f'''#!/usr/bin/env bash
 
+# In real app stop any containers that mangle database while dumping to have consistent dump
+# docker stop myapp
+
 mkdir -p {MONGO_DUMP_DIR}
 mongodump --archive={MONGO_DUMP_DIR}/mongo-dump-by-hook.tar.gz --db=test --gzip mongodb://cobra-e2e-tests-dind:27017
+
+# Then start them again
+# docker start myapp
 '''
 
 AFTER_RESTORE_HOOK = f'''#!/usr/bin/env bash
 
-docker run -p 27017:27017 -v mongo:/data/db -d --rm --name mongo mongo:6.0
-# sleep 1000
-mongorestore --archive={MONGO_DUMP_DIR}/mongo-dump-by-hook.tar.gz --db=test --gzip mongodb://cobra-e2e-tests-dind:27017
-# docker stop mongo
+# In real app stop any containers that mangle database while restoring
+# docker stop myapp
+
+mongorestore --archive={MONGO_DUMP_DIR}/mongo-dump-by-hook.tar.gz --db=test --gzip mongodb://cobra-e2e-tests-dind:37017
+
+# Then start them again
+# docker start myapp
 '''
 
 
@@ -72,9 +82,9 @@ def after_restore_hook():
     return AFTER_RESTORE_HOOK
 
 
-def run_mongodump(file_name):
+def run_mongodump(file_name, port=27017):
     check_call(['mongodump', f'--archive={file_name}', '--db=test', 
-                '--gzip', 'mongodb://cobra-e2e-tests-dind:27017'])
+                '--gzip', f'mongodb://cobra-e2e-tests-dind:{port}'])
 
 
 def put_hook(hooks_dir, hook_name, hook_content):
@@ -85,46 +95,39 @@ def put_hook(hooks_dir, hook_name, hook_content):
     os.chmod(hook_full_fn, 0o755)
 
 
-def wait_for_mongo_port():
-    check_call(['./wait-for-it.sh', 'cobra-e2e-tests-dind:27017', '-t', '30'])
+def wait_for_port(port):
+    check_call(['./wait-for-it.sh', f'cobra-e2e-tests-dind:{port}', '-t', '30'])
 
 
-def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client, mongo_container, mongo_client, 
-                                                                          mongo_docs, mongo_volume, folder_id):
+def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client, mongo_volumes, mongo_containers, 
+                                                                          mongo_client, mongo_docs, folder_id):
     hooks_dir = '/tmp/mongo-hooks'
     put_hook(hooks_dir, 'before_build', before_build_hook())
     put_hook(hooks_dir, 'after_restore', after_restore_hook())
 
-    # wait_for_mongo_port()
-    before_backup_fn = 'mongodb-test1.tar.gz'
-    run_mongodump(before_backup_fn)
+    wait_for_port(27017)
+    wait_for_port(37017)
+    before_backup = list(TestDoc.objects())
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'build', '--push', 
                 '--backup-dir', '/shared/backup', '--dir', MONGO_DUMP_DIR,
-                '--creds', './.key.json', '--folder-id', folder_id, '--exclude', 'mongo'])
+                '--creds', './.key.json', '--folder-id', folder_id, 
+                '--exclude', mongo_volumes[0].name, mongo_volumes[1].name])
 
-    # time.sleep(1000)
-    mongo_container.remove(v=True, force=True)
-    mongo_volume.remove(force=True)
+    mongo_containers[0].remove(v=True, force=True)
+    mongo_volumes[0].remove(force=True)
     rmtree(MONGO_DUMP_DIR)
 
     with pytest.raises(NotFound):
-        client.volumes.get('mongo')
+        client.volumes.get(mongo_volumes[0].name)
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'pull', '--latest', 
                 '--restore', '--cache-dir', '/shared/cache',
                 '--creds', './.key.json', '--folder-id', folder_id])
 
-    # container = client.containers.run('mongo:6.0', name='mongo', ports={'27017/tcp': 27017},
-    #     volumes=dict(mongo=dict(bind='/data/db', mode='rw')), detach=True)
+    disconnect()
+    mongo_connect(port=37017)
+    after_restore = list(TestDoc.objects())
 
-    # wait_for_mongo_port()
-    after_restore_fn = 'mongodb-test2.tar.gz'
-    run_mongodump(after_restore_fn)
-
-    # mongo_container = client.containers.get('mongo')
-    # mongo_container.remove(v=True, force=True)
-    # mongo_volume = client.volumes.get('mongo')
-    # mongo_volume.remove(force=True)
-
-    assert cmp(before_backup_fn, after_restore_fn, shallow=False)
+    for before, after in zip(before_backup, after_restore):
+        assert before == after

@@ -1,4 +1,4 @@
-from share import rand_str
+from share import rand_str, TestDoc, mongo_connect
 
 import pytest
 
@@ -9,7 +9,7 @@ import tarfile
 import hashlib
 import io
 from os.path import join, basename
-from mongoengine import Document, StringField, IntField, FloatField, connect
+from mongoengine import connect
 
 
 FILES_NUM = 5
@@ -77,8 +77,18 @@ def files_volume(client):
 
 
 @pytest.fixture
-def mongo_volume(client):
-    return client.volumes.create('mongo')
+def mongo_volume1(client):
+    return client.volumes.create('mongo1')
+
+
+@pytest.fixture
+def mongo_volume2(client):
+    return client.volumes.create('mongo2')
+
+
+@pytest.fixture
+def mongo_volumes(mongo_volume1, mongo_volume2):
+    return mongo_volume1, mongo_volume2
 
 
 def remove_container_safely(client, container):
@@ -106,15 +116,9 @@ def files_container(client, files_volume, file_names, source_tar_data):
     remove_container_safely(client, container)
 
 
-class TestDoc(Document):
-    name = StringField()
-    amount = IntField()
-    factor = FloatField()
-
-
 @pytest.fixture
 def mongo_client():
-    connect(db='test', host='cobra-e2e-tests-dind', port=27017)
+    return mongo_connect()
 
 
 @pytest.fixture
@@ -125,10 +129,27 @@ def mongo_docs():
     TestDoc(name='Jim Carrey', amount=99999, factor=1.2).save()
 
 
+MONGO_DOCKER_IMAGE = 'mongo:6.0'
+
+
 @pytest.fixture
-def mongo_container(client, mongo_volume):
-    client.images.pull('mongo:6.0')
-    container = client.containers.run('mongo:6.0', name='mongo', ports={'27017/tcp': 27017},
-        volumes=dict(mongo=dict(bind='/data/db', mode='rw')), detach=True)
+def mongo_container1(client, mongo_volume1):
+    client.images.pull(MONGO_DOCKER_IMAGE)
+    container = client.containers.run(MONGO_DOCKER_IMAGE, name='mongo1', ports={'27017/tcp': 27017},
+        volumes=dict(mongo1=dict(bind='/data/db', mode='rw')), detach=True)
     yield container
     remove_container_safely(client, container)
+
+
+@pytest.fixture
+def mongo_container2(client, mongo_volume2):
+    client.images.pull(MONGO_DOCKER_IMAGE)
+    container = client.containers.run(MONGO_DOCKER_IMAGE, name='mongo2', ports={'27017/tcp': 37017},
+        volumes=dict(mongo2=dict(bind='/data/db', mode='rw')), detach=True)
+    yield container
+    remove_container_safely(client, container)
+
+
+@pytest.fixture
+def mongo_containers(mongo_container1, mongo_container2):
+    return mongo_container1, mongo_container2
