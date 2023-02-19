@@ -2,9 +2,9 @@ from cobra.exc import HookError
 
 from subprocess import check_call
 from importlib.util import spec_from_file_location, module_from_spec
-from os.path import join, exists, abspath, realpath
-import os
+from os.path import join, abspath, realpath, exists
 import sys
+import os
 from shlex import quote
 
 
@@ -46,7 +46,7 @@ def default_hooks_dir():
 def default_hook(**kwargs):
     hooks_dir = kwargs['hooks_dir']
     hook_name = kwargs['hook_name']
-    del kwargs['docker']
+    kwargs.pop('docker', None)
     
     script_fn = join(hooks_dir, f'{hook_name}.sh')
     if not exists(script_fn):
@@ -82,6 +82,9 @@ class Hooks:
 
 
     def __call__(self, hook_name, **kwargs):
+        if hook_name not in self.HOOKS:
+            raise ValueError(f'Invalid hook name specified [{hook_name}]')
+
         if hook_name in self.__disable_hooks:
             return
 
@@ -93,7 +96,6 @@ class Hooks:
                 # fixme: If there is no python file found whether to fallback to default or not?
                 return default_hook(hook_name=hook_name, hooks_dir=hooks_dir, **kwargs)
 
-            # hook = self.__source_import(hook_name, fn)
             hook = _source_import(hook_name, fn)
             return hook.hook(hook_name=hook_name, hooks_dir=hooks_dir, **kwargs)
         except BaseException as e:
@@ -103,7 +105,7 @@ class Hooks:
 
     
     def init_hooks(self, hooks_dir=None):
-        hooks_dir = hooks_dir if hooks_dir else self.__hooks_dir
+        hooks_dir = realpath(abspath(hooks_dir if hooks_dir else self.__hooks_dir))
         if hooks_dir is None:
             raise ValueError('No hooks directory has been specified')
 
@@ -118,11 +120,3 @@ class Hooks:
             with open(shell_fn, 'w') as f:
                 f.write(DEFAULT_SHELL_HOOK)
             os.chmod(shell_fn, 0o755)
-
-
-    # def __source_import(self, module_name, fn):
-    #     spec = spec_from_file_location(module_name, fn)
-    #     module = module_from_spec(spec)
-    #     sys.modules[module_name] = module
-    #     spec.loader.exec_module(module)
-    #     return module

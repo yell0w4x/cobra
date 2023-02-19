@@ -16,8 +16,6 @@ from mongoengine import disconnect
 
 
 def test_must_backup_and_restore_files_from_named_volume(client, files_volume, source_tar_data, files_container, file_names, folder_id):
-    # # client.containers.run('alpine:3.17', volumes=dict(files=dict(bind='/files', mode='rw')))
-
     # use shared volume between dind and test container to make stuff visible in bind mounts
     check_call(['cobra', 'backup', 'build', '--backup-dir', '/shared/backup', '--push', 
                 '--creds', './.key.json', '--folder-id', folder_id])
@@ -124,6 +122,9 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'pull', '--latest', 
                 '--restore', '--cache-dir', '/shared/cache',
                 '--creds', './.key.json', '--folder-id', folder_id])
+
+    with pytest.raises(NotFound):
+        client.volumes.get(mongo_volumes[0].name)
 
     disconnect()
     mongo_connect(port=37017)

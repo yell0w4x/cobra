@@ -122,13 +122,6 @@ def json_load_mock(volumes_metadata):
         yield mock
 
 
-@pytest.fixture
-def exists_mock():
-    with patch('os.path.exists') as mock:
-        mock.return_value = True
-        yield mock
-
-
 # @pytest.fixture
 def files_list():
     return ['file1', 'file2', 'file3']

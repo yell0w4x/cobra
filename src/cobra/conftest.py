@@ -1,6 +1,9 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+from os.path import exists
+import os.path
+
 
 @pytest.fixture
 def open_mock():
@@ -19,4 +22,11 @@ def makedirs_mock():
 @pytest.fixture
 def chmod_mock():
     with patch('os.chmod') as mock:
+        yield mock
+
+
+@pytest.fixture
+def exists_mock():
+    with patch('os.path.exists') as mock:
+        mock.return_value = True
         yield mock
