@@ -19,7 +19,7 @@ After that `cobra` command will be available from the command line.
 To get the cli description please issue `cobra --help` or 
 e.g. `cobra backup --help` to get help on certain command.
 
-This will backup all the docker volumes ss well as `/want/this/dir/backed/up` 
+This will backup all the docker volumes as well as `/want/this/dir/backed/up` 
 directory, but `skip-this-volume` `and-this-one`.
 
 ```bash
@@ -55,8 +55,8 @@ HOOKS = ('before_build', 'after_build', 'before_push', 'after_push',
          'before_pull', 'after_pull', 'before_restore', 'after_restore')
 ```
 
-One can either issue `cobra hooks init` that populates hook files in the default directory. 
-Or you can put the hook files with the names e.g. `before_build.py` or `before_build.sh`. 
+One can either issue `cobra hooks init` that populates hook files to the default directory. 
+Or put the hook files with the names e.g. `before_build.py` or `before_build.sh`. 
 For shell script `chmod +x before_build.sh` is necessary.
 
 Cobra searches for `.py` file first if found imports it and execute `hook` fucntion as.
@@ -66,18 +66,19 @@ hook(hook_name=hook_name, hooks_dir=hooks_dir, backup_dir=backup_dir,
      filename=backup_filename, docker=docker_client)
 ```
 
-`hook_name` is the one from the above list
-`hooks_dir` the directory where hooks reside
-`backup_dir` the local backup directory where backup is stored 
-`filename` the backup file name
-`docker` [DockerClient](https://docker-py.readthedocs.io/en/stable/client.html#docker.client.DockerClient) object
+* `hook_name` is the one from the list above
+* `hooks_dir` the directory where hooks reside
+* `backup_dir` the local backup directory where backup is stored 
+* `filename` the backup file name
+* `docker` [DockerClient](https://docker-py.readthedocs.io/en/stable/client.html#docker.client.DockerClient) object
 
 If `.py` file is not found. The default hook is called that continue searching for `.sh` file.
-If latter found it's called via `subprocess.check_call()`. With same params except `docker`.
+If latter found it's called via `subprocess.check_call()`. With the same params except `docker`.
 
-By default `cobra` copy and pack the content of the volume. 
-To backup database with tools like `mongodump` or `pg_dump` one may use `before_build` hook.
-`before_build` hook example may look like this in such a case.
+By default `cobra` copies and packs the content of a volume. 
+To backup database with tools like `mongodump` or `pg_dump` one may use `before_build` hook
+and `--exclude volume-name` from the processing.
+`before_build` hook may look like this in such a case.
 
 ```bash
 #!/usr/bin/env bash
@@ -93,7 +94,7 @@ Then start them again
 docker start my-excellent-app
 ```
 
-Errors propagated from hooks stop farther processing. 
+Errors that are propagated from hooks stop farther processing. 
 To see more details please inspect e2e test sources.
 
 ### Default locations
@@ -102,7 +103,7 @@ To find out paths used by cobra one can issue following.
 On my system I have this output.
 
 ```bash
-cobra dirs
+$ cobra dirs
 /home/q/.local/share/cobra/backup
 /home/q/.cache/cobra
 /home/q/.local/share/cobra/hooks
@@ -131,7 +132,7 @@ cd cobra
 ./run-tests --unit
 ```
  
-The above will run unit tests. To execute end-to-end tests run is as follows. 
+The above runs unit tests. To execute end-to-end tests run is as follows. 
 Note that docker must reside in the system.
 To install it on Ubuntu use `wget -qO- https://get.docker.com | sudo bash`. 
 On Manjaro (Arch) issue `sudo pacman -S docker`.
@@ -145,7 +146,7 @@ GOOGLE_DRIVE_FOLDER_ID=goolge-drive-folder-id GOOGLE_SERVICE_ACC_KEY=path/to/key
 ```
 
 The tests are based on pytest. All the extra arguments are passed to pytest. 
-So to have verbose output use `-v` or `-vv`. To show stdout `-s`. 
+E.g. to have verbose output use `-v` or `-vv`. To show stdout `-s`. 
 To run certain tests use `-k test_name` and etc. For details see the pytest docs.
 
 ```bash
