@@ -101,6 +101,12 @@ def parse_command_line(cli_handler, args=sys.argv[1:]):
     hooks_init_parser = hooks_sp.add_parser('init', help='Initialize hooks in hooks directory. NOTE that all the hook files will be overwritten!')
     hooks_init_parser.add_argument('--hooks-dir', default=default_hooks_dir(), help='Specifies hooks directory to search for hooks (default: %(default)s)')
     hooks_init_parser.set_defaults(handler=cli_handler.init_hooks)
+    # dirs
+    dirs_parser = sp.add_parser('dirs', help='Print default directories used by cobra')
+    dirs_parser.set_defaults(handler=cli_handler.print_default_dirs)
+    dirs_sp = dirs_parser.add_subparsers(title='dirs subcommands')
+    dirs_list_parser = dirs_sp.add_parser('list', help='List default directories.')
+    dirs_list_parser.set_defaults(handler=cli_handler.print_default_dirs)
 
     args = parser.parse_args(args)
     effective_args = purge(vars(args))

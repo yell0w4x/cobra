@@ -6,6 +6,123 @@ regular file system folders.
 
 ![Cobra cli](https://github.com/yell0w4x/assets/raw/main/cobra-cli.png)
 
+## How to use
+
+```
+pip install cobra-archiver
+```
+
+### CLI
+
+After that `cobra` command will be available from the command line.
+
+To get the cli description please issue `cobra --help` or 
+e.g. `cobra backup --help` to get help on certain command.
+
+This will backup all the docker volumes ss well as `/want/this/dir/backed/up` 
+directory, but `skip-this-volume` `and-this-one`.
+
+```bash
+cobra backup build --push --dir /want/this/dir/backed/up \
+    --creds /path/to/google-service-acc-key.json --folder-id google-drive-folder-id \
+    --exclude skip-this-volume and-this-one
+```
+
+This restores latest backup from the given remote folder.
+
+```bash
+cobra backup pull --latest --restore \
+    --creds /path/to/google-service-acc-key.json --folder-id google-drive-folder-id
+```
+
+### Remote storage
+
+For now Google Drive only supported. If you find this project useful you can contribute 
+to enhance it. Or at least you can post a feature request.
+
+1. To have this work the [Google Service Account](https://cloud.google.com/iam/docs/service-accounts) is necessary.
+   The service account id (email) looks like `<the-name-you-choose>@hip-heading-376120.iam.gserviceaccount.com`. 
+2. Under the service account you've created add the key pair and download it in `.json` format. 
+3. Now create the folder within your Google Drive you wish to push the backups in.
+4. Share this folder with the service account (email) from step 1.
+
+### Hooks
+
+They are listed below.
+
+```python
+HOOKS = ('before_build', 'after_build', 'before_push', 'after_push', 
+         'before_pull', 'after_pull', 'before_restore', 'after_restore')
+```
+
+One can either issue `cobra hooks init` that populates hook files in the default directory. 
+Or you can put the hook files with the names e.g. `before_build.py` or `before_build.sh`. 
+For shell script `chmod +x before_build.sh` is necessary.
+
+Cobra searches for `.py` file first if found imports it and execute `hook` fucntion as.
+
+```python
+hook(hook_name=hook_name, hooks_dir=hooks_dir, backup_dir=backup_dir, 
+     filename=backup_filename, docker=docker_client)
+```
+
+`hook_name` is the one from the above list
+`hooks_dir` the directory where hooks reside
+`backup_dir` the local backup directory where backup is stored 
+`filename` the backup file name
+`docker` [DockerClient](https://docker-py.readthedocs.io/en/stable/client.html#docker.client.DockerClient) object
+
+If `.py` file is not found. The default hook is called that continue searching for `.sh` file.
+If latter found it's called via `subprocess.check_call()`. With same params except `docker`.
+
+By default `cobra` copy and pack the content of the volume. 
+To backup database with tools like `mongodump` or `pg_dump` one may use `before_build` hook.
+`before_build` hook example may look like this in such a case.
+
+```bash
+#!/usr/bin/env bash
+
+# Stop any containers that mangle database while dumping to have consistent dump
+docker stop my-excellent-app
+
+MONGO_DUMP_DIR=/tmp/mongodump
+mkdir -p "${MONGO_DUMP_DIR}"
+mongodump --archive="${MONGO_DUMP_DIR}/mongo-dump-by-hook.tar.gz" --db=test --gzip mongodb://mongo-container-name:27017
+
+Then start them again
+docker start my-excellent-app
+```
+
+Errors propagated from hooks stop farther processing. 
+To see more details please inspect e2e test sources.
+
+### Default locations
+
+To find out paths used by cobra one can issue following. 
+On my system I have this output.
+
+```bash
+cobra dirs
+/home/q/.local/share/cobra/backup
+/home/q/.cache/cobra
+/home/q/.local/share/cobra/hooks
+```
+
+### Python
+
+Minimum python version is 3.7.
+
+```python
+from cobra.api import Api
+from cobra.hooks import Hooks
+from docker import DockerClient
+
+api = Api(gateway=DockerClient(), hooks=Hooks())
+api.backup_build()
+```
+
+Method parameters are described in cli help `cobra backup --help` e.g.
+
 ## Run tests
 
 ```bash
@@ -14,10 +131,10 @@ cd cobra
 ./run-tests --unit
 ```
  
-The above will run unit tests. To run end-to-end tests run as follows. 
+The above will run unit tests. To execute end-to-end tests run is as follows. 
 Note that docker must reside in the system.
-To install it on Ubuntu `wget -qO- https://get.docker.com | sudo bash`. 
-On Manjaro (Arch) `sudo pacman -S docker`.
+To install it on Ubuntu use `wget -qO- https://get.docker.com | sudo bash`. 
+On Manjaro (Arch) issue `sudo pacman -S docker`.
 
 ```bash
 ./run-tests --e2e --folder-id goolge-drive-folder-id --key path/to/google-service-account-key.json
@@ -50,59 +167,3 @@ Options:
     --key KEY_FN          Path to google service account key file in json format
                           If not given read from GOOGLE_SERVICE_ACC_KEY environment variable.
 ```
-
-## How to use
-
-```
-pip install cobra-archiver
-```
-
-### CLI
-
-After that `cobra` command will be available from the command line.
-
-To get the cli description please issue `cobra --help` or 
-e.g. `cobra backup --help` to get help on certain command.
-
-This will backup all the docker volumes ss well as `/want/this/dir/backed/up` 
-directory, but `skip-this-volume` `and-this-one`.
-
-```bash
-cobra backup build --push --dir /want/this/dir/backed/up \
-    --creds /path/to/google-service-acc-key.json --folder-id google-drive-folder-id \
-    --exclude skip-this-volume and-this-one
-```
-
-This restores latest backup from the given remote folder.
-
-```bash
-cobra backup pull --latest --restore \
-    --creds /path/to/google-service-acc-key.json --folder-id google-drive-folder-id
-```
-
-
-### Remote storage
-
-For now Google Drive only supported. If you find this project useful you can contribute 
-to enhance it. Or at least you can post a feature request.
-
-1. To have this work the [Google Service Account](https://cloud.google.com/iam/docs/service-accounts) is necessary.
-   The service account id (email) looks like `<the-name-you-choose>@hip-heading-376120.iam.gserviceaccount.com`. 
-2. Under the service account you've created add the key pair and download it in `.json` format. 
-3. Now create the folder within your Google Drive you wish to push the backups in.
-4. Share this folder with the service account (email) from step 1.
-
-### Python
-
-Minimum python version is 3.7.
-
-```python
-from cobra.api import Api
-from cobra.hooks import Hooks
-from docker import DockerClient
-
-api = Api(gateway=DockerClient(), hooks=Hooks())
-api.backup_build()
-```
-
-Method parameters are described in cli help `cobra backup --help` e.g.

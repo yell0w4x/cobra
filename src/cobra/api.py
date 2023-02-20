@@ -5,7 +5,6 @@ import cobra.google_drive
 from cobra.aux_stuff import rand_str, print_json
 from cobra.hooks import default_hooks_dir
 
-# import aiohttp
 import copy
 import logging
 import asyncio
@@ -228,6 +227,13 @@ class Api:
             return
 
         self.__hooks.init_hooks(hooks_dir)
+
+
+    def print_default_dirs(self, **kwargs):
+        print(default_backup_dir())
+        print(default_cache_dir())
+        # print(default_config_dir())
+        print(default_hooks_dir())
 
 #fixme: shutils quote names
 
