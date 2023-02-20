@@ -54,7 +54,7 @@ Options:
 ## How to use
 
 ```
-pip install cobra
+pip install cobra-archiver
 ```
 
 ### CLI
