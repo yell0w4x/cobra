@@ -20,7 +20,7 @@ SKIP_BUILD=
 
 usage() {
 cat << EOF
-Run unit tests or e2e.
+Run cobra unit and e2e tests.
 
 Usage:
     ${0} [OPTIONS] [EXTRA_ARGS]
@@ -110,17 +110,29 @@ if [ -n "${UNIT}" ]; then
         pip install -r requirements.txt
     fi
 
-    echo -e "\033[0;36mRunning unit tests...\033[0m"
+    echo -e "\033[36mRunning unit tests...\033[0m"
     PYTHONPATH="${SCRIPT_DIR}/src" pytest "${SCRIPT_DIR}/src" "${ARGS[@]}"
 fi
 
 if [ -n "${E2E}" ]; then
+    echo -e "\033[36mRunning e2e tests...\033[0m"
     if [ -z "${SKIP_BUILD}" ]; then
         "${SCRIPT_DIR}/build"
     fi
-    WHEEL_FULL_FN="$(ls ${SCRIPT_DIR}/dist/*.whl)"
+
     E2E_TESTS_DIR="${SCRIPT_DIR}/e2e-tests"
     E2E_COMPOSE_FN="${E2E_TESTS_DIR}/docker-compose.yml"
+    WHEEL_FULL_FN="$(ls ${SCRIPT_DIR}/dist/*.whl 2>/dev/null)" || true
+
+    if [ -z "${WHEEL_FULL_FN}" ]; then
+        if [ -n "${SKIP_BUILD}" ]; then
+            echo -e "\033[31mWheel file not found. Remove --skip-build option\033[0m" > /dev/stderr
+        else
+            echo -e "\033[31mWheel file not found\033[0m" > /dev/stderr
+        fi
+        exit 1
+    fi
+
     E2E_TEMP_DIR="${E2E_TESTS_DIR}/tests/.temp"
     rm -rf "${E2E_TEMP_DIR}"
     mkdir -p "${E2E_TEMP_DIR}"

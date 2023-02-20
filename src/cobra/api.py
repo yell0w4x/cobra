@@ -52,13 +52,15 @@ def default_cache_dir():
 
 
 class Api:
-    def __init__(self, gateway=None, hooks=None):
+    def __init__(self, gateway=None, hooks=None, log_level=logging.INFO):
         '''
         Creates an API instance.
 
         @param gateway The DockerClient instance or None. If None is specified the default one 
                         is created.
         '''
+        log_format = '[%(asctime)s]:%(levelname)-5s:: %(message)s -- {%(filename)s:%(lineno)d:(%(funcName)s)}'
+        logging.basicConfig(level=log_level, format=log_format)
 
         self.__logger = logging.getLogger(__name__)
         self.__docker = gateway if gateway else docker.DockerClient(base_url=DEFAULT_BASE_URL)
@@ -222,6 +224,9 @@ class Api:
 
 
     def init_hooks(self, hooks_dir=default_hooks_dir(), **kwargs):
+        if not self.__hooks:
+            return
+
         self.__hooks.init_hooks(hooks_dir)
 
 #fixme: shutils quote names

@@ -1,4 +1,4 @@
-# CoBRA - COmprehensive Backing up and Restoreation Archiver
+# CoBRA - COmprehensive Backing up and Restoration Archiver
 
 Cobra is a tool for creating, managing and restoring backups. 
 It is designed to cover docker powered applications as well as it allows backing up of 
@@ -7,9 +7,46 @@ regular file system folders.
 ## Run tests
 
 ```bash
-git clone git@github.com:mindsync-ai/mindsync-api-python.git
-cd mindsync-api-python
-./run-tests
+git clone https://github.com/yell0w4x/cobra.git
+cd cobra
+./run-tests --unit
+```
+ 
+The above will run unit tests. To run end-to-end tests run as follows. 
+Note that docker must reside in the system.
+To it install on Ubuntu `wget -qO- https://get.docker.com | sudo bash`. 
+On Manjaro (Arch) `sudo pacman -S docker`.
+
+```bash
+./run-tests --e2e --folder-id goolge-drive-folder-id --key path/to/google-service-account-key.json
+```
+or
+```bash
+GOOGLE_DRIVE_FOLDER_ID=goolge-drive-folder-id GOOGLE_SERVICE_ACC_KEY=path/to/key.json ./run-tests --e2e
+```
+
+The tests are based on pytest. All the extra arguments are passed to pytest. 
+So to have verbose output use `-v` or `-vv`. To show stdout `-s`. 
+To run certain tests use `-k test_name` and etc. For details see the pytest docs.
+
+```bash
+./run-tests --help
+Run cobra unit and e2e tests.
+
+Usage:
+    ./run-tests [OPTIONS] [EXTRA_ARGS]
+
+All the EXTRA_ARGS are passed to pytest
+
+Options:
+    --help                Show help message
+    --unit                Run unit tests
+    --e2e                 Run e2e tests
+    --skip-build          Skip building dist files
+    --folder-id FOLDER_ID Google drive folder id to use as remote storage for e2e tests. 
+                          If not given read from GOOGLE_DRIVE_FOLDER_ID environment variable.
+    --key KEY_FN          Path to google service account key file in json format
+                          If not given read from GOOGLE_SERVICE_ACC_KEY environment variable.
 ```
 
 ## How to use
@@ -22,67 +59,48 @@ pip install cobra
 
 After that `cobra` command will be available from the command line.
 
-To get the cli description please use `cobra --help` or e.g. `cobra backup --help` to get help on certain command.
-Docker base url can be specified by environment variables `DOCKER_BASE_URL`.
+To get the cli description please issue `cobra --help` or 
+e.g. `cobra backup --help` to get help on certain command.
 
-To backup all the docker volumes run this.
+This will backup all the docker volumes ss well as `/want/this/dir/backed/up` 
+directory, but `skip-this-volume` `and-this-one`.
 
 ```bash
-cobra backup build --push 
+cobra backup build --push --dir /want/this/dir/backed/up \
+    --creds /path/to/google-service-acc-key.json --folder-id google-drive-folder-id \
+    --exclude skip-this-volume and-this-one
 ```
+
+This restores latest backup from the given remote folder.
+
+```bash
+cobra backup pull --latest --restore \
+    --creds /path/to/google-service-acc-key.json --folder-id google-drive-folder-id
+```
+
+
+### Remote storage
+
+For now Google Drive only supported. If you find this project useful you can contribute 
+to enhance it. Or at least you can post a feature request.
+
+    1. To have this work the (Google Service Account)[https://cloud.google.com/iam/docs/service-accounts] is necessary.
+       The service account id (email) looks like `<the-name-you-choose>@hip-heading-376120.iam.gserviceaccount.com`. 
+    2. Under the service account you've created add the key pair and download it in `.json` format. 
+    3. Now create the folder within your Google Drive you wish to push the backups in.
+    4. Share this folder with the service account (email) from step 1.
 
 ### Python
 
-Mindsync provides both async and non-async api version. They have the same interface.
+Minimum python version is 3.7.
 
 ```python
-from mindsync.api import AsyncApi
+from cobra.api import Api
+from cobra.hooks import Hooks
+from docker import DockerClient
 
-API_KEY = 'fd3f8479b0b6b9868bff9bfadfefe69d'
-
-async def get_profile():
-    api = AsyncApi(API_KEY)
-    return await api.profile()
+api = Api(gateway=DockerClient(), hooks=Hooks())
+api.backup_build()
 ```
 
-And blocking version.
-
-```python
-from mindsync.api import Api
-
-API_KEY = 'fd3f8479b0b6b9868bff9bfadfefe69d'
-
-api = Api(API_KEY)
-print(api.profile())
-```
-
-## Examples
-```
-$ examples/run 
-Runs an example(s).
-
-Usage:
-    MINDSYNC_API_KEY=... MINDSYNC_BASE_URL=... examples/run EXAMPLE_NAME [EXAMPLE_NAME...]
-
-Arguments:
-    EXAMPLE_NAME   Example file name
-
-Options:
-    --help         Shows help message
-```
-
-```
-cd examples
-MINDSYNC_API_KEY=16b2e0cd2feacd54c8a872205e70cd56 MINDSYNC_BASE_URL=https://api.mindsync.ai ./run create_n_run_code.py
-```
-
-## REST API
-
-The REST API reference is available here https://app.swaggerhub.com/apis-docs/mindsync.ai/mindsync-api/1.2.0.
-
-## Resources 
-- www: https://mindsync.ai
-- telegram: https://t.me/mindsyncai
-- linkedin: https://www.linkedin.com/company/12984228/
-- facebook: https://fb.me/mindsync.ai.official/
-- medium: https://medium.com/mindsync-ai
+Method parameters are described in cli help `cobra backup --help` e.g.

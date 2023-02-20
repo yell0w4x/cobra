@@ -148,11 +148,13 @@ def _main():
         tls_config = docker.tls.TLSConfig(ca_cert=ca_cert, client_cert=client_cert, verify=True)
         api = Api(gateway=DockerClient(base_url=args.get('base_url'), tls=tls_config), 
                                        hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
-                                                   disable_hooks=args.get('hook_off', list())))
+                                                   disable_hooks=args.get('hook_off', list())),
+                                       log_level=args['log_level'])
     else:
         api = Api(gateway=DockerClient(base_url=args.get('base_url')), 
                                        hooks=Hooks(hooks_dir=args.get('hooks_dir', default_hooks_dir()), 
-                                                   disable_hooks=args.get('hook_off', list())))
+                                                   disable_hooks=args.get('hook_off', list())),
+                                       log_level=args['log_level'])
 
     cli_handler.bind(api)
     args['handler'](**args, print=True)
