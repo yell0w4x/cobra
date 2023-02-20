@@ -4,6 +4,8 @@ Cobra is a tool for creating, managing and restoring backups.
 It is designed to cover docker powered applications as well as it allows backing up of 
 regular file system folders.
 
+![Cobra cli](https://github.com/yell0w4x/assets/raw/main/cobra-cli.png)
+
 ## Run tests
 
 ```bash
@@ -84,11 +86,11 @@ cobra backup pull --latest --restore \
 For now Google Drive only supported. If you find this project useful you can contribute 
 to enhance it. Or at least you can post a feature request.
 
-    1. To have this work the (Google Service Account)[https://cloud.google.com/iam/docs/service-accounts] is necessary.
-       The service account id (email) looks like `<the-name-you-choose>@hip-heading-376120.iam.gserviceaccount.com`. 
-    2. Under the service account you've created add the key pair and download it in `.json` format. 
-    3. Now create the folder within your Google Drive you wish to push the backups in.
-    4. Share this folder with the service account (email) from step 1.
+1. To have this work the [Google Service Account](https://cloud.google.com/iam/docs/service-accounts) is necessary.
+   The service account id (email) looks like `<the-name-you-choose>@hip-heading-376120.iam.gserviceaccount.com`. 
+2. Under the service account you've created add the key pair and download it in `.json` format. 
+3. Now create the folder within your Google Drive you wish to push the backups in.
+4. Share this folder with the service account (email) from step 1.
 
 ### Python
 
