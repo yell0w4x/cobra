@@ -100,7 +100,7 @@ def wait_for_port(port):
     check_call(['./wait-for-it.sh', f'cobra-e2e-tests-dind:{port}', '-t', '30'])
 
 
-def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client, mongo_volumes, mongo_containers, 
+def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client, mongo_containers, 
                                                                           mongo_client, mongo_docs, folder_id):
     hooks_dir = '/tmp/mongo-hooks'
     put_hook(hooks_dir, 'before_build', before_build_hook())
@@ -113,21 +113,21 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'build', '--push', 
                 '--backup-dir', '/shared/backup', '--dir', MONGO_DUMP_DIR,
                 '--creds', KEY_FN, '--folder-id', folder_id, 
-                '--exclude', mongo_volumes[0].name, mongo_volumes[1].name])
+                '--exclude', 'mongo1', 'mongo2'])
 
     mongo_containers[0].remove(v=True, force=True)
-    mongo_volumes[0].remove(force=True)
+    client.volumes.get('mongo1').remove(force=True)
     rmtree(MONGO_DUMP_DIR)
 
     with pytest.raises(NotFound):
-        client.volumes.get(mongo_volumes[0].name)
+        client.volumes.get('mongo1')
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'pull', '--latest', 
                 '--restore', '--cache-dir', '/shared/cache',
                 '--creds', KEY_FN, '--folder-id', folder_id])
 
     with pytest.raises(NotFound):
-        client.volumes.get(mongo_volumes[0].name)
+        client.volumes.get('mongo1')
 
     disconnect()
     mongo_connect(port=37017)

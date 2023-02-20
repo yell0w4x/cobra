@@ -8,6 +8,7 @@ import tempfile
 import tarfile
 import hashlib
 import io
+import time
 from os.path import join, basename
 from mongoengine import connect
 
@@ -68,22 +69,13 @@ def source_tar_data(file_names):
 
 @pytest.fixture
 def files_volume(client):
-    return client.volumes.create('files')
-
-
-@pytest.fixture
-def mongo_volume1(client):
-    return client.volumes.create('mongo1')
-
-
-@pytest.fixture
-def mongo_volume2(client):
-    return client.volumes.create('mongo2')
-
-
-@pytest.fixture
-def mongo_volumes(mongo_volume1, mongo_volume2):
-    return mongo_volume1, mongo_volume2
+    yield client.volumes.create('files')
+    try:
+        v = client.volumes.get('files')
+    except docker.errors.NotFound:
+        pass
+    else:
+        v.remove(force=True)
 
 
 def remove_container_safely(client, container):
@@ -128,7 +120,7 @@ MONGO_DOCKER_IMAGE = 'mongo:6.0'
 
 
 @pytest.fixture
-def mongo_container1(client, mongo_volume1):
+def mongo_container1(client):
     client.images.pull(MONGO_DOCKER_IMAGE)
     container = client.containers.run(MONGO_DOCKER_IMAGE, name='mongo1', ports={'27017/tcp': 27017},
         volumes=dict(mongo1=dict(bind='/data/db', mode='rw')), detach=True)
@@ -137,7 +129,7 @@ def mongo_container1(client, mongo_volume1):
 
 
 @pytest.fixture
-def mongo_container2(client, mongo_volume2):
+def mongo_container2(client):
     client.images.pull(MONGO_DOCKER_IMAGE)
     container = client.containers.run(MONGO_DOCKER_IMAGE, name='mongo2', ports={'27017/tcp': 37017},
         volumes=dict(mongo2=dict(bind='/data/db', mode='rw')), detach=True)
