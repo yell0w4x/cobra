@@ -1,4 +1,4 @@
-# CoBRA - COmprehensive Backing up and Restoration Archiver
+# CoBRA - Comprehensive Backing up and Restoration Archiver
 
 Cobra is a tool for creating, managing and restoring backups. 
 It is designed to cover docker powered applications as well as it allows backing up of 
@@ -16,7 +16,7 @@ cd cobra
  
 The above will run unit tests. To run end-to-end tests run as follows. 
 Note that docker must reside in the system.
-To it install on Ubuntu `wget -qO- https://get.docker.com | sudo bash`. 
+To install it on Ubuntu `wget -qO- https://get.docker.com | sudo bash`. 
 On Manjaro (Arch) `sudo pacman -S docker`.
 
 ```bash
