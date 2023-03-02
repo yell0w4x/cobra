@@ -59,7 +59,7 @@ One can either issue `cobra hooks init` that populates hook files to the default
 Or put the hook files with the names e.g. `before_build.py` or `before_build.sh`. 
 For shell script `chmod +x before_build.sh` is necessary.
 
-Cobra searches for `.py` file first if found imports it and execute `hook` fucntion as.
+Cobra searches for `.py` file first if found imports it and execute `hook` function as.
 
 ```python
 hook(hook_name=hook_name, hooks_dir=hooks_dir, backup_dir=backup_dir, 
@@ -90,7 +90,7 @@ MONGO_DUMP_DIR=/tmp/mongodump
 mkdir -p "${MONGO_DUMP_DIR}"
 mongodump --archive="${MONGO_DUMP_DIR}/mongo-dump-by-hook.tar.gz" --db=test --gzip mongodb://mongo-container-name:27017
 
-Then start them again
+# Then start them again
 docker start my-excellent-app
 ```
 
@@ -149,7 +149,7 @@ The tests are based on pytest. All the extra arguments are passed to pytest.
 E.g. to have verbose output use `-v` or `-vv`. To show stdout `-s`. 
 To run certain tests use `-k test_name` and etc. For details see the pytest docs.
 
-```bash
+```
 ./run-tests --help
 Run cobra unit and e2e tests.
 
