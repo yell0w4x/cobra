@@ -9,6 +9,7 @@ import tarfile
 import hashlib
 import io
 import time
+import shutil
 from os.path import join, basename
 from mongoengine import connect
 
@@ -87,6 +88,15 @@ def remove_container_safely(client, container):
         container.remove(v=True, force=True)
 
 
+def remove_volume_safely(client, volume_name):
+    try:
+        volume = client.volumes.get(volume_name)
+    except docker.errors.NotFound:
+        pass
+    else:
+        volume.remove(force=True)
+
+
 @pytest.fixture
 def files_container(client, files_volume, file_names, source_tar_data):
     client.images.pull('alpine:3.17')
@@ -101,6 +111,7 @@ def files_container(client, files_volume, file_names, source_tar_data):
 
     yield container
     remove_container_safely(client, container)
+    remove_volume_safely(client, 'files')
 
 
 @pytest.fixture
@@ -126,6 +137,7 @@ def mongo_container1(client):
         volumes=dict(mongo1=dict(bind='/data/db', mode='rw')), detach=True)
     yield container
     remove_container_safely(client, container)
+    remove_volume_safely(client, 'mongo1')
 
 
 @pytest.fixture
@@ -135,8 +147,15 @@ def mongo_container2(client):
         volumes=dict(mongo2=dict(bind='/data/db', mode='rw')), detach=True)
     yield container
     remove_container_safely(client, container)
+    remove_volume_safely(client, 'mongo2')
 
 
 @pytest.fixture
 def mongo_containers(mongo_container1, mongo_container2):
     return mongo_container1, mongo_container2
+
+
+@pytest.fixture(autouse=True)
+def clear_backup_dir():
+    yield
+    shutil.rmtree('/shared/backup', ignore_errors=True)

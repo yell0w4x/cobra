@@ -124,6 +124,11 @@ api.backup_build()
 
 Method parameters are described in cli help `cobra backup --help` e.g.
 
+### Security notice
+
+This code is subject to command injection vulnerabilty. There are no such a checks. 
+The caller should provide all checks on his own.
+
 ## Run tests
 
 ```bash

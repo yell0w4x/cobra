@@ -36,6 +36,7 @@ Options:
                           If not given read from GOOGLE_DRIVE_FOLDER_ID environment variable.
     --key KEY_FN          Path to google service account key file in json format
                           If not given read from GOOGLE_SERVICE_ACC_KEY environment variable.
+    --debug               Sets bash 'x' option
 EOF
 }
 
@@ -70,6 +71,10 @@ while [ "${#}" -gt 0 ]; do
             GOOGLE_SERVICE_ACC_KEY="${1}"
             ;;
 
+        --debug)
+            set -x
+        ;;
+
         *)
             ARGS+=("${1}")
             ;;
@@ -78,7 +83,7 @@ while [ "${#}" -gt 0 ]; do
    shift
 done
 
-set -eu
+set -eEu
 
 if [ -z "${UNIT}" ] && [ -z "${E2E}" ]; then
     echo -e '\033[31mEither --e2e or --unit or both are required\033[0m' > /dev/stderr
@@ -95,11 +100,22 @@ fi
 
 on_exit() {
     if [ -n "${E2E}" ]; then
-        docker compose -f "${E2E_COMPOSE_FN}" rm --stop --force
+        docker compose -f "${E2E_COMPOSE_FN}" stop cobra-e2e-tests-dind
+        docker compose -f "${E2E_COMPOSE_FN}" rm --force cobra-e2e-tests-dind
+        docker volume rm -f e2e-tests_shared
+    fi
+}
+
+on_error() {
+    if [ -n "${E2E}" ]; then
+        docker compose -f "${E2E_COMPOSE_FN}" stop cobra-e2e-tests-dind
+        docker compose -f "${E2E_COMPOSE_FN}" rm --force cobra-e2e-tests-dind
+        docker volume rm -f e2e-tests_shared
     fi
 }
 
 trap on_exit EXIT
+trap 'on_error ${?} ${LINENO}' ERR
 
 if [ -n "${UNIT}" ]; then
     if [ -d "${VENV_DIR}" ]; then

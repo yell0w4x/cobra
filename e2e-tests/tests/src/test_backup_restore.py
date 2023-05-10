@@ -13,14 +13,28 @@ from subprocess import check_call
 from docker.errors import NotFound
 from shutil import rmtree
 from mongoengine import disconnect
+import shutil
 
 
 KEY_FN = '/test/.key.json'
+# use shared volume between dind and test container to make stuff visible in bind mounts
+BACKUP_DIR = '/shared/backup'
+CACHE_DIR = '/shared/cache'
+
+
+def compare_tars(source_tar_data, dest_tar_data, file_names):
+    with tempfile.TemporaryDirectory(prefix='cobra-test-') as temp_dir:
+        source_dir = join(temp_dir, '1')
+        dest_dir = join(temp_dir, '2')
+        extract_tar(source_dir, source_tar_data)
+        extract_tar(dest_dir, dest_tar_data)
+        source_dir = join(source_dir, 'files')
+        dest_dir = join(dest_dir, 'files')
+        return cmpfiles(source_dir, dest_dir, file_names, shallow=False)
 
 
 def test_must_backup_and_restore_files_from_named_volume(client, files_volume, source_tar_data, files_container, file_names, folder_id):
-    # use shared volume between dind and test container to make stuff visible in bind mounts
-    check_call(['cobra', 'backup', 'build', '--backup-dir', '/shared/backup', '--push', 
+    check_call(['cobra', 'backup', 'build', '--backup-dir', BACKUP_DIR, '--push', 
                 '--creds', KEY_FN, '--folder-id', folder_id])
 
     files_container.remove(v=True, force=True)
@@ -29,7 +43,7 @@ def test_must_backup_and_restore_files_from_named_volume(client, files_volume, s
     with pytest.raises(NotFound):
         client.volumes.get('files')
 
-    check_call(['cobra', 'backup', 'pull', '--latest', '--restore', '--cache-dir', '/shared/cache',
+    check_call(['cobra', 'backup', 'pull', '--latest', '--restore', '--cache-dir', CACHE_DIR,
                 '--creds', KEY_FN, '--folder-id', folder_id])
 
     files_volume = client.volumes.get('files')
@@ -38,16 +52,9 @@ def test_must_backup_and_restore_files_from_named_volume(client, files_volume, s
     stream, _ = files_container.get_archive('/files', chunk_size=None)
     dest_tar_data = next(stream)
 
-    with tempfile.TemporaryDirectory(prefix='cobra-test-') as temp_dir:
-        source_dir = join(temp_dir, '1')
-        dest_dir = join(temp_dir, '2')
-        extract_tar(source_dir, source_tar_data)
-        extract_tar(dest_dir, dest_tar_data)
-        source_dir = join(source_dir, 'files')
-        dest_dir = join(dest_dir, 'files')
-        _, diff, errors = cmpfiles(source_dir, dest_dir, file_names, shallow=False)
-    
+    _, diff, errors = compare_tars(source_tar_data, dest_tar_data, file_names)
     assert not diff and not errors
+
 
 
 MONGO_DUMP_DIR = '/shared/mongodb-dump'
@@ -111,7 +118,7 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
     before_backup = list(TestDoc.objects())
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'build', '--push', 
-                '--backup-dir', '/shared/backup', '--dir', MONGO_DUMP_DIR,
+                '--backup-dir', BACKUP_DIR, '--dir', MONGO_DUMP_DIR,
                 '--creds', KEY_FN, '--folder-id', folder_id, 
                 '--exclude', 'mongo1', 'mongo2'])
 
@@ -123,7 +130,7 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
         client.volumes.get('mongo1')
 
     check_call(['cobra', 'backup', '--hooks-dir', hooks_dir, 'pull', '--latest', 
-                '--restore', '--cache-dir', '/shared/cache',
+                '--restore', '--cache-dir', CACHE_DIR,
                 '--creds', KEY_FN, '--folder-id', folder_id])
 
     with pytest.raises(NotFound):
@@ -135,3 +142,25 @@ def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client
 
     for before, after in zip(before_backup, after_restore):
         assert before == after
+
+
+def test_must_backup_and_restore_by_using_cache_dir(client, files_volume, source_tar_data, files_container, file_names):
+    check_call(['cobra', 'backup', 'build', '--backup-dir', BACKUP_DIR])
+
+    files_container.remove(v=True, force=True)
+    files_volume.remove(force=True)
+
+    with pytest.raises(NotFound):
+        client.volumes.get('files')
+
+    backup_fn = os.listdir(BACKUP_DIR)[0]
+    check_call(['cobra', 'backup', 'restore', '--cache-dir', BACKUP_DIR, backup_fn])
+
+    files_volume = client.volumes.get('files')
+    files_container = client.containers.create('alpine:3.17', name='files', 
+        volumes=dict(files=dict(bind='/files', mode='rw')))
+    stream, _ = files_container.get_archive('/files', chunk_size=None)
+    dest_tar_data = next(stream)
+
+    _, diff, errors = compare_tars(source_tar_data, dest_tar_data, file_names)
+    assert not diff and not errors
