@@ -107,11 +107,21 @@ def wait_for_port(port):
     check_call(['./wait-for-it.sh', f'cobra-e2e-tests-dind:{port}', '-t', '30'])
 
 
-def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client, mongo_containers, 
-                                                                          mongo_client, mongo_docs, folder_id):
-    hooks_dir = '/tmp/mongo-hooks'
+@pytest.fixture
+def hooks_dir():
+    return '/tmp/mongo-hooks'
+
+
+@pytest.fixture
+def hooks(hooks_dir):
     put_hook(hooks_dir, 'before_build', before_build_hook())
     put_hook(hooks_dir, 'after_restore', after_restore_hook())
+    yield
+    shutil.rmtree(hooks_dir)
+
+
+def test_must_backup_and_restore_mongo_db_from_named_volume_via_mongodump(client, mongo_containers, hooks, hooks_dir,
+                                                                          mongo_client, mongo_docs, folder_id):
 
     wait_for_port(27017)
     wait_for_port(37017)

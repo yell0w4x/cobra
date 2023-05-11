@@ -90,20 +90,3 @@ def folder_list(service_acc_key_fn, folder_id):
                                    orderBy='createdTime').execute()
 
     return results.get('files', [])
-
-
-if __name__ == '__main__':
-    # drive_list('../../.temp/4xybox-service-account-key.json')
-    # drives_create('../../.temp/4xybox-service-account-key.json')
-    # drive_info('../../.temp/4xybox-service-account-key.json')
-    # upload_file('../../.temp/4xybox-service-account-key.json', 
-    #             './__init__.py', 'application/json', 
-    #             '__init__.py', '100d96r89SxvJvm7ZUqFCOztaiZv6sBIA')
-    try:
-        gen = download_file('.temp/4xybox-service-account-key.json', '1-dooih8zN9ze0BH6Asu7rxuMqMfRoRyq', './.temp')
-        while True:
-            status = next(gen)
-    except StopIteration as e:
-        # content, fn = e.value
-        print(e.value)
-    
